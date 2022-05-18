@@ -9,5 +9,3 @@ Felix create rmd for 1 Tutorial 1: Range expansion, long-distance dispersal and 
 Kevin create rmd for 2 Tutorial 2: Landscape-scale connectivity, matrix permeability and dispersal behaviour (rangeshifter.github.io)
 
 Duncan create rmd for 3 Tutorial 3: Dynamic landscapes and movement paths (rangeshifter.github.io)
-
-TESTING THE PULL Function
