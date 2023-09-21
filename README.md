@@ -6,8 +6,8 @@ This repository contains R code to run RangeShiftR in within a "pausing" framewo
 
 This repository contains four main directories:
 - `code` : contains the code to setup, run and analyse simulations
-- `data` : contains the `raw` and `processed` raster and vector data to be used for the simulations (this data is not stored in the repository due to size)
-- `outputs` : default location for simulation outputs to be saved - this folder will be remain empty in the online repository
+- `data` : not stored in the repository, but needed for data storage. It contains the `raw` and `processed` raster and vector data to be used for the simulations (this data is not stored in the repository due to size)
+- `outputs` : not stored in the repository, but it is the default location for simulation outputs to be saved.
 - `tutorial` : contains the earliest files added to this repository, based on [rangeshifter.github.io](rangeshifter.github.io) tutorials
 
 # Dependencies
@@ -27,7 +27,7 @@ Contains the code to set up and run batches of RangeShiftR simulations.
 
 This includes the creation of the landscape and species files required to initialise simulations. The user can set the extent and provide a species distribution shapefile, and this script will create the required initialisation files.
 
-This file also allows you to create a list of parameter values to experiment with for common RangeShifter parameters that we have used so far (e.g. Rmax, D0, alpha, beta, dispersal distance, ...).
+This file also allows you to create a list of parameter values to experiment with common RangeShifter parameters that we have used so far (e.g. Rmax, D0, alpha, beta, dispersal distance, ...).
 
 The file will generate a table displaying the parameters being tested, and will iterate through and run simulations for all parameter combinations.
 
