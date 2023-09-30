@@ -16,9 +16,9 @@ output_path <- "../outputs"
 # A set of different habitat extents (small extents used mainly for testing).
 # extent(xmin, xmax, ymin, ymax)
 # Any extent can be set, but if the files do not exist, it will be created below.
-clipped_extent <- raster::extent(605000, 620000, 135000, 150000) # very small clipped extent
-# clipped_extent <- raster::extent(425000, 645000, 70000, 240000) # small clipped extent
-# clipped_extent <- raster::extent(120000, 650000, 10000, 240000) # medium clipped extent
+clipped_extent <- terra::ext(605000, 620000, 135000, 150000) # very small clipped extent
+# clipped_extent <- terra::ext(425000, 645000, 70000, 240000) # small clipped extent
+# clipped_extent <- terra::ext(120000, 650000, 10000, 240000) # medium clipped extent
 
 # Aggregation factor is the factor by which the original raster file pixel height/width is aggregated
 # Note the original raster file pixel size is hard coded here as 25 metres (ideally
@@ -31,10 +31,10 @@ pixel_size <- 25 * aggregation_factor
 # using extent_str.
 extent_str <- sprintf(
   "xmin%s-xmax%s-ymin%s-ymax%s",
-  clipped_extent@xmin,
-  clipped_extent@xmax,
-  clipped_extent@ymin,
-  clipped_extent@ymax
+  clipped_extent$xmin,
+  clipped_extent$xmax,
+  clipped_extent$ymin,
+  clipped_extent$ymax
 )
 
 # If the habitat files do not exist for this extent, create them.
@@ -64,7 +64,7 @@ rangeshiftr_steps <- 1
 # Note the parameters currently listed are the only ones that have been
 # configured for control in this batch mode. Any additional parameters will
 # need to be set up.
-rmax_list <- c(5, 10, 20)
+rmax_list <- c(5, 10) # c(5, 10, 20)
 D0_list <- c(0.7)
 alpha_list <- c(10)
 beta_list <- c(0.5)
@@ -72,9 +72,9 @@ short_range_dist_list <- c(5000)
 long_range_dist_list <- c(50000)
 short_dist_prob_list <- c(0.995) # c(0.995, 0.99, 0.95)
 carrying_capacity_list <- c(5000) # c(100, 200, 300, 400, 1000, 5000)
-replicates_list <- c(10)
+replicates_list <- c(2)
 years_list <- c(5)
-years_for_destruction_list <- c(5, 10) # c(2, 5, 10, 20)
+years_for_destruction_list <- c(5) # c(2, 5, 10, 20)
 apply_destruction_annually <- c(TRUE) # c(FALSE, TRUE)
 
 # Create dataframe of all parameter combinations
