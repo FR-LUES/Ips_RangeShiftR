@@ -121,7 +121,7 @@ create_habitat_and_initial_dist <- function(
   # Convert species distribution point to ascii raster for rangeshifter
   # rst_species <- terra::classify(rst_lcm, cbind(0, 25, NA))
   rst_species <- terra::classify(rst_lcm, cbind(0, 25, 0))
-  rst_species <- terra::rasterize(shp_species, rst_species, field="pop", update=TRUE)
+  rst_species <- terra::rasterize(shp_species, rst_species, field="pop")
   names(rst_species) <- c("pop")
   terra::writeRaster(rst_species, file.path(dirpath, extent_str, "initial_dist.tif"), overwrite=TRUE)
   
@@ -280,7 +280,7 @@ extract_pop_shp_to_rst <- function(
   
   pop_rst <- terra::classify(rst_lcm, cbind(minmax(rst_lcm)[1], minmax(rst_lcm)[2], 0))
   if (sum(pop_shp$NInd) > 0) {
-    pop_rst <- terra::rasterize(pop_shp, pop_rst, field="NInd", update=TRUE)
+    pop_rst <- terra::rasterize(pop_shp, pop_rst, field="NInd")
   } 
   
   return(pop_rst)
