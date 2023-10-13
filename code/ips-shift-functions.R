@@ -103,6 +103,9 @@ create_habitat_and_initial_dist <- function(
     # take sum here because spruce=1, so the sum is the number of 25m pixels occurring in
     # the aggregated pixel
     rst_hab_quality <- terra::aggregate(rst_spruce, fact=aggregation_factor, fun="sum", na.rm=T)
+  } else {
+    rst_spruce_hab <- rst_spruce
+    rst_hab_quality <- rst_spruce
   }
   
   rst_lcm[rst_nfi == 5]<- 22 # conifer
