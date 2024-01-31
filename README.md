@@ -1,6 +1,6 @@
 # Ips_RangeShiftR
 
-This repository contains R code to run RangeShiftR in within a "pausing" framework that allows for interactions between the landscape and the modelled species.
+This repository contains R code to run RangeShiftR within a "pausing" framework that allows for interactions between the landscape and the modelled species.
 
 # Structure
 
@@ -28,6 +28,25 @@ Contains the code to set up and run batches of RangeShiftR simulations.
 This includes the creation of the landscape and species files required to initialise simulations. The user can set the extent and provide a species distribution shapefile, and this script will create the required initialisation files.
 
 This file also allows you to create a list of parameter values to experiment with common RangeShifter parameters that we have used so far (e.g. Rmax, D0, alpha, beta, dispersal distance, ...).
+
+### Existing RangeShiftR parameters that can currently be controlled:
+- rmax
+- D0
+- alpha
+- beta
+- short_range_dist
+- long_range_dist
+- short_dist_prob
+- carrying_capacity
+- replicates
+- years
+
+### Additional parameters for interaction with the landsacpe
+- years_for_destruction: how many years of maximum occupancy does it take for the species to destroy the habitat
+- apply_destruction_annually: does habitat degradation happen each year, or only after `year_for_destruction` years
+- spei: an indicator of drought risk - during droughts, carrying capacity can be changed
+- carrying_capacity_drought: carrying capacity during droughts
+- phenips: rmax multiplier - effecively broods per year, as influence by climate
 
 The file will generate a table displaying the parameters being tested, and will iterate through and run simulations for all parameter combinations.
 
