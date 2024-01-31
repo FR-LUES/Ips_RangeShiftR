@@ -298,7 +298,10 @@ PausingExtras <- function(
     years,
     pop_impacts_quality,
     years_for_destruction,
-    apply_destruction_annually
+    apply_destruction_annually,
+    spei,
+    carrying_capacity_drought,
+    phenips
 ) {
   
   setClass(
@@ -308,7 +311,10 @@ PausingExtras <- function(
       years="numeric",
       pop_impacts_quality="logical",
       years_for_destruction="numeric",
-      apply_destruction_annually="logical"
+      apply_destruction_annually="logical",
+      spei="list",
+      carrying_capacity_drought="numeric",
+      phenips="list"
     )
   )
   
@@ -318,7 +324,10 @@ PausingExtras <- function(
     years=years,
     pop_impacts_quality=pop_impacts_quality,
     years_for_destruction=years_for_destruction,
-    apply_destruction_annually=apply_destruction_annually
+    apply_destruction_annually=apply_destruction_annually,
+    spei=spei,
+    carrying_capacity_drought=carrying_capacity_drought,
+    phenips=phenips
   )
   
   return(pausingextras)
@@ -337,6 +346,10 @@ run_pausing_simulations <- function(
   
   replicates <- sim_params@pausingextras@replicates
   years <- sim_params@pausingextras@years
+  spei_list <- sim_params@pausingextras@spei[[1]]
+  carrying_capacity <- sim_params@land@K_or_DensDep
+  phenips_list <- sim_params@pausingextras@phenips[[1]]
+  base_rmax <- sim_params@demog@Rmax
   
   rst_lcm <- terra::rast(file.path(dirpath, "Inputs", sprintf("%s.tif", habitat_rst_name)))
   
@@ -352,6 +365,25 @@ run_pausing_simulations <- function(
     
     for (year in 1:years) {
       
+      spei <- spei_list[year]
+      if (is.na(spei)) {
+        stop(sprintf("No spei value for year %s", year))
+      }
+      if (spei == "Y") {
+        sim_params@land@K_or_DensDep <- sim_params@pausingextras@carrying_capacity_drought
+      } else if (spei == "N") {
+        sim_params@land@K_or_DensDep <- carrying_capacity
+      } else {
+        stop(sprintf("spei value must be either 'Y' or 'N'"))
+      }
+      phenips <- phenips_list[year]
+      if (is.na(phenips)) {
+        stop(sprintf("No phenips value for year %s", year))
+      }
+      if (!is.numeric(phenips)) {
+        stop(sprintf("phenips value must be numeric"))
+      }
+      sim_params@demog@Rmax <- phenips * base_rmax
       # RangeShiftR needs a backslash at end of path
       result <- RunRS(sim_params, sprintf("%s/", dirpath))
       

@@ -1,5 +1,7 @@
 library(uuid)
 library(RangeShiftR)
+library(readxl)
+library(openxlsx)
 
 
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
@@ -16,8 +18,8 @@ output_path <- "../outputs"
 # A set of different habitat extents (small extents used mainly for testing).
 # extent(xmin, xmax, ymin, ymax)
 # Any extent can be set, but if the files do not exist, it will be created below.
-clipped_extent <- terra::ext(605000, 620000, 135000, 150000) # very small clipped extent
-# clipped_extent <- terra::ext(425000, 645000, 70000, 240000) # small clipped extent
+# clipped_extent <- terra::ext(605000, 620000, 135000, 150000) # very small clipped extent
+clipped_extent <- terra::ext(425000, 645000, 70000, 240000) # small clipped extent
 # clipped_extent <- terra::ext(120000, 650000, 10000, 240000) # medium clipped extent
 
 # Aggregation factor is the factor by which the original raster file pixel height/width is aggregated
@@ -59,23 +61,34 @@ if (!file.exists(file.path(input_data_path, extent_str, sprintf("%s.asc", habita
 # This is unlikely to change from 1.
 rangeshiftr_steps <- 1
 
+df_spei <- read_excel(path="../data/Mockdata_ips_climate.xlsx", sheet="SPEI")
+df_phenips <- read_excel(path="../data/Mockdata_ips_climate.xlsx", sheet="PHENIPS")
+
+spei <- list(df_spei$Exeeds_cutoff)
+phenips <- list(df_phenips$Generations)
+
 # Create arrays here of the parameters to be used, and a dataframe (df_params)
 # is created with a full factorial design.
 # Note the parameters currently listed are the only ones that have been
 # configured for control in this batch mode. Any additional parameters will
 # need to be set up.
-rmax_list <- c(5, 10) # c(5, 10, 20)
+rmax_list <- c(5) # c(5, 10, 20)
 D0_list <- c(0.7)
 alpha_list <- c(10)
 beta_list <- c(0.5)
 short_range_dist_list <- c(5000)
 long_range_dist_list <- c(50000)
 short_dist_prob_list <- c(0.995) # c(0.995, 0.99, 0.95)
-carrying_capacity_list <- c(5000) # c(100, 200, 300, 400, 1000, 5000)
-replicates_list <- c(2)
-years_list <- c(5)
-years_for_destruction_list <- c(5) # c(2, 5, 10, 20)
-apply_destruction_annually <- c(TRUE) # c(FALSE, TRUE)
+carrying_capacity_list <- c(1000) # c(100, 200, 300, 400, 1000, 5000)
+replicates_list <- c(1)
+years_list <- c(10)
+# Additional parameters for interaction with the landsacpe
+years_for_destruction_list <- c(20) # c(2, 5, 10, 20)
+apply_destruction_annually_list <- c(FALSE) # c(FALSE, TRUE)
+spei_list <- c(spei) # CANNOT USE MULTIPLE VERSIONS OF SPEI PER SIM BATCH
+carrying_capacity_drought_list <- c(10000)
+phenips_list <- c(phenips) # CANNOT USE MULTIPLE VERSIONS OF PHENIPS PER SIM BATCH
+
 
 # Create dataframe of all parameter combinations
 df_params <- expand.grid(
@@ -90,7 +103,10 @@ df_params <- expand.grid(
   replicates = replicates_list,
   years = years_list,
   years_for_destruction = years_for_destruction_list,
-  apply_destruction_annually = apply_destruction_annually
+  apply_destruction_annually = apply_destruction_annually_list,
+  spei = spei_list,
+  carrying_capacity_drought = carrying_capacity_drought_list,
+  phenips = phenips_list
 )
 
 # Create a unique ID for each simulation, this is used as the directory
@@ -99,7 +115,7 @@ df_params["sim_uuid"] = sapply(1:nrow(df_params), UUIDgenerate)
 sim_start_time <- format(Sys.time(), "%Y-%m-%d-%Hh%Mm%Ss")
 sim_batch_path <- file.path(output_path, sim_start_time)
 dir.create(sim_batch_path)
-write.csv(df_params, file.path(sim_batch_path, "sim-parameters.csv"), row.names = FALSE)
+write.xlsx(df_params, file.path(sim_batch_path, "sim-parameters.xlsx"))
 
 
 ##################
@@ -121,7 +137,9 @@ for(i in 1:nrow(df_params)) {
   years <- row$years
   years_for_destruction <- row$years_for_destruction
   apply_destruction_annually <- row$apply_destruction_annually
-  
+  spei <- row$spei
+  carrying_capacity_drought <- row$carrying_capacity_drought
+  phenips <- row$phenips
   
   dirpath <- file.path(sim_batch_path, sim_uuid)
   
@@ -180,7 +198,10 @@ for(i in 1:nrow(df_params)) {
     years=years,
     pop_impacts_quality=T,
     years_for_destruction=years_for_destruction,
-    apply_destruction_annually=apply_destruction_annually
+    apply_destruction_annually=apply_destruction_annually,
+    spei=spei,
+    carrying_capacity_drought=carrying_capacity_drought,
+    phenips=phenips
   )
   
   validateRSparams(sim_params)
