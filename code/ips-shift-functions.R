@@ -260,7 +260,28 @@ extract_pop_shp_to_table <- function(
     pop_shp
 ) {
   
-  pop_shp <- pop_shp[, c("Year", "Species", "x", "y", "NInd")]
+  if ("Nfemales" %in% colnames(pop_shp)) {
+    pop_shp <- pop_shp[, c("Year", "Species", "x", "y", "NInd", "Nfemales", "Nmales")]
+    # Create copy for males and females, only including rows with a population
+    pop_shp_female <- subset(pop_shp, Nfemales > 0)
+    pop_shp_male <- subset(pop_shp, Nmales > 0)
+    
+    # The oututs have "Nfemales" and "Nmales", but the input Inds file needs to have
+    # "NInd" and "Sex" columns
+    pop_shp_female$NInd <- pop_shp_female$Nfemales
+    pop_shp_female <- pop_shp_female[, c("Year", "Species", "x", "y", "NInd")]
+    pop_shp_female$Sex <- 0
+    
+    pop_shp_male$NInd <- pop_shp_male$Nmales
+    pop_shp_male <- pop_shp_male[, c("Year", "Species", "x", "y", "NInd")]
+    pop_shp_male$Sex <- 1
+    
+    pop_shp <- rbind(pop_shp_female, pop_shp_male)
+    pop_shp <- pop_shp[order(pop_shp$x, pop_shp$y, pop_shp$Sex),]
+    
+  } else {
+    pop_shp <- pop_shp[, c("Year", "Species", "x", "y", "NInd")]
+  }
   
   names(pop_shp)[names(pop_shp) == "x"] <- "X"
   names(pop_shp)[names(pop_shp) == "y"] <- "Y"
@@ -287,7 +308,6 @@ extract_pop_shp_to_rst <- function(
   } 
   
   return(pop_rst)
-  
 }
 
 
