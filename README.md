@@ -44,8 +44,6 @@ This file also allows you to create a list of parameter values to experiment wit
 ### Additional parameters for interaction with the landsacpe
 - `years_for_destruction`: how many years of maximum occupancy does it take for the species to destroy the habitat
 - `apply_destruction_annually: does habitat degradation happen each year, or only after `year_for_destruction` years
-- `spei`: an indicator of drought risk - during droughts, carrying capacity can be changed
-- `carrying_capacity_drought`: carrying capacity during droughts
 - `phenips`: rmax multiplier - effecively broods per year, as influence by climate
 
 The file will generate a table displaying the parameters being tested, and will iterate through and run simulations for all parameter combinations.
