@@ -226,33 +226,51 @@ extract_pop_file_to_shp <- function(
 
 
 
-apply_pop_impact_on_hab_quality <- function(
+calculate_pop_impact_on_hab_quality <- function(
     pop_rst,
     years_for_destruction,
     apply_destruction_annually,
-    sim_params,
-    coord_ref_sys,
-    geom_extent,
-    dirpath
+    sim_params
   ) {
   
-  hab_qual_rst  <- terra::rast(file.path(dirpath, "Inputs", sim_params@land@LandscapeFile))
-  crs(hab_qual_rst) <- coord_ref_sys
-  terra::ext(hab_qual_rst) <- geom_extent
+  # Calculate carrying capacity per pixel
+  # Rangeshifter stores it as per hectare
+  carry_cap_per_pixel <- sim_params@land@K_or_DensDep * (sim_params@land@Resolution^2 / 10000)
   
   if (apply_destruction_annually) {
-    quality_impact <- ((pop_rst / sim_params@land@K_or_DensDep) * 100)
+    quality_impact <- ((pop_rst / carry_cap_per_pixel) * 100) / years_for_destruction
   } else {
-    quality_impact <- ((pop_rst / sim_params@land@K_or_DensDep) * 100) / years_for_destruction
+    quality_impact <- ((pop_rst / carry_cap_per_pixel) * 100)
   }
+  cat("HERE: %s", global(quality_impact, mean)$mean)
   
-  hab_qual_rst <- round(hab_qual_rst - quality_impact)
+  quality_impact <- round(quality_impact)
+  
+  return(quality_impact)
+  
+}
+
+
+apply_pop_impact_on_hab_quality <- function(
+  quality_impact,
+  landscape,
+  sim_params,
+  coord_ref_sys,
+  geom_extent,
+  dirpath
+    
+) {
+  
+  initial_hab_qual_rst  <- terra::rast(file.path(dirpath, "Inputs", landscape))
+  crs(initial_hab_qual_rst) <- coord_ref_sys
+  terra::ext(initial_hab_qual_rst) <- geom_extent
+  
+  hab_qual_rst <- round(initial_hab_qual_rst - quality_impact)
   hab_qual_rst[hab_qual_rst < 0] <- 0
   
   return(hab_qual_rst)
   
 }
-
 
 
 
@@ -305,7 +323,8 @@ extract_pop_shp_to_rst <- function(
   pop_rst <- terra::classify(rst_lcm, cbind(minmax(rst_lcm)[1], minmax(rst_lcm)[2], 0))
   if (sum(pop_shp$NInd) > 0) {
     pop_rst <- terra::rasterize(pop_shp, pop_rst, field="NInd")
-  } 
+  }
+  pop_rst <- classify(pop_rst, cbind(NA, 0))
   
   return(pop_rst)
 }
@@ -319,9 +338,8 @@ PausingExtras <- function(
     pop_impacts_quality,
     years_for_destruction,
     apply_destruction_annually,
-    spei,
-    carrying_capacity_drought,
-    phenips
+    phenips,
+    dynamic_hab_quality_landscape_list
 ) {
   
   setClass(
@@ -332,9 +350,8 @@ PausingExtras <- function(
       pop_impacts_quality="logical",
       years_for_destruction="numeric",
       apply_destruction_annually="logical",
-      spei="list",
-      carrying_capacity_drought="numeric",
-      phenips="list"
+      phenips="list",
+      dynamic_hab_quality_landscape_list="list"
     )
   )
   
@@ -345,9 +362,8 @@ PausingExtras <- function(
     pop_impacts_quality=pop_impacts_quality,
     years_for_destruction=years_for_destruction,
     apply_destruction_annually=apply_destruction_annually,
-    spei=spei,
-    carrying_capacity_drought=carrying_capacity_drought,
-    phenips=phenips
+    phenips=phenips,
+    dynamic_hab_quality_landscape_list=dynamic_hab_quality_landscape_list
   )
   
   return(pausingextras)
@@ -366,12 +382,14 @@ run_pausing_simulations <- function(
   
   replicates <- sim_params@pausingextras@replicates
   years <- sim_params@pausingextras@years
-  spei_list <- sim_params@pausingextras@spei[[1]]
   carrying_capacity <- sim_params@land@K_or_DensDep
   phenips_list <- sim_params@pausingextras@phenips[[1]]
   base_rmax <- sim_params@demog@Rmax
+  dynamic_hab_quality_landscape_list <- sim_params@pausingextras@dynamic_hab_quality_landscape_list
   
   rst_lcm <- terra::rast(file.path(dirpath, "Inputs", sprintf("%s.tif", habitat_rst_name)))
+  total_impact_hab_quality <- rst_lcm
+  total_impact_hab_quality[total_impact_hab_quality>=0] <- 0
   
   start_init <- sim_params@init
   start_land <- sim_params@land
@@ -381,21 +399,18 @@ run_pausing_simulations <- function(
     sim_params@init <- start_init
     sim_params@land <- start_land
     
+    sim_params@land@LandscapeFile <- sprintf("%s.asc", dynamic_hab_quality_landscape_list[[1]])
+    
     out_rasters <- c()
     
     for (year in 1:years) {
       
-      spei <- spei_list[year]
-      if (is.na(spei)) {
-        stop(sprintf("No spei value for year %s", year))
-      }
-      if (spei == "Y") {
-        sim_params@land@K_or_DensDep <- sim_params@pausingextras@carrying_capacity_drought
-      } else if (spei == "N") {
-        sim_params@land@K_or_DensDep <- carrying_capacity
+      if (year <= length(dynamic_hab_quality_landscape_list)) {
+        next_landscape <- sprintf("%s.asc", dynamic_hab_quality_landscape_list[[year]])
       } else {
-        stop(sprintf("spei value must be either 'Y' or 'N'"))
+        next_landscape <- sprintf("%s.asc", dynamic_hab_quality_landscape_list[[length(dynamic_hab_quality_landscape_list)]])
       }
+      
       phenips <- phenips_list[year]
       if (is.na(phenips)) {
         stop(sprintf("No phenips value for year %s", year))
@@ -425,7 +440,6 @@ run_pausing_simulations <- function(
       terra::writeRaster(pop_rst, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_pop.tif", replicate,  year)))
       out_rasters <- c(out_rasters, pop_rst)
       
-      # If Population is zero, then break out of this simulation
       if (nrow(pop_shp) > 0) {
         
         df_pop_table <- extract_pop_shp_to_table(pop_shp)
@@ -440,27 +454,48 @@ run_pausing_simulations <- function(
             (year %% sim_params@pausingextras@years_for_destruction == 0)
           ) {
             
-            new_hab_qual_rst <- apply_pop_impact_on_hab_quality(
+            new_quality_impact_rst <- calculate_pop_impact_on_hab_quality(
               pop_rst=pop_rst,
               years_for_destruction=sim_params@pausingextras@years_for_destruction,
               apply_destruction_annually=sim_params@pausingextras@apply_destruction_annually,
+              sim_params=sim_params
+            )
+            
+            terra::writeRaster(new_quality_impact_rst, file.path(dirpath, "Output_maps", sprintf("rep%s_year%s_new_quality_impact.tif", replicate, year)))
+            
+            total_impact_hab_quality <- total_impact_hab_quality + new_quality_impact_rst
+            total_impact_hab_quality[total_impact_hab_quality>100] <- 100
+            
+            terra::writeRaster(total_impact_hab_quality, file.path(dirpath, "Output_maps", sprintf("rep%s_year%s_total_quality_impact.tif", replicate, year)))
+            
+            new_hab_qual_rst <- apply_pop_impact_on_hab_quality(
+              quality_impact=total_impact_hab_quality,
+              landscape=next_landscape,
               sim_params=sim_params,
               coord_ref_sys=crs(rst_lcm),
               geom_extent=terra::ext(rst_lcm),
               dirpath=dirpath
             )
             
-            new_landscape_asc <- sprintf("rep%s_year%s_%s.asc", replicate, year, habitat_rst_name)
+            if (year <= length(dynamic_hab_quality_landscape_list)) {
+              new_landscape_name <- sprintf("rep%s_year%s_%s", replicate, year, dynamic_hab_quality_landscape_list[[year]])
+            } else {
+              new_landscape_name <- sprintf("rep%s_year%s_%s", replicate, year, dynamic_hab_quality_landscape_list[[length(dynamic_hab_quality_landscape_list)]])
+            }
+            
+            terra::writeRaster(new_hab_qual_rst, file.path(dirpath, "Output_maps", sprintf("%s.tif", new_landscape_name)))
             
             write_ascii_raster(
               raster=new_hab_qual_rst,
-              file_path=file.path(dirpath, "Inputs", new_landscape_asc),
+              file_path=file.path(dirpath, "Inputs", sprintf("%s.asc", new_landscape_name)),
               datatype="INT2S"
             )
                   
-            sim_params@land@LandscapeFile <- new_landscape_asc
+            sim_params@land@LandscapeFile <- sprintf("%s.asc", new_landscape_name)
             
           }
+        } else {
+          sim_params@land@LandscapeFile <- next_landscape
         }
         
         for (out_file in c("Pop", "Range", "Parameters")) {
