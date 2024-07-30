@@ -56,7 +56,6 @@
 
 
 library(terra)
-library(rgdal)
 library(sf)
 
 setwd(getSrcDirectory(function(){})[1])
@@ -396,21 +395,26 @@ run_pausing_simulations <- function(
   
   for (replicate in 1:replicates) {
     
+    # Reset initialisation and land parameters ready to start next replicate
     sim_params@init <- start_init
     sim_params@land <- start_land
-    
     sim_params@land@LandscapeFile <- sprintf("%s.asc", dynamic_hab_quality_landscape_list[[1]])
     
+    # Empty raster list to store a stack of population rasters
     out_rasters <- c()
     
     for (year in 1:years) {
       
-      if (year <= length(dynamic_hab_quality_landscape_list)) {
-        next_landscape <- sprintf("%s.asc", dynamic_hab_quality_landscape_list[[year]])
+      # If the year is less than or equal to the length of the landscape list,
+      # then use the correct landscape in sequence.
+      # Else use the last landscape.
+      if (year+1 <= length(dynamic_hab_quality_landscape_list)) {
+        next_landscape <- sprintf("%s.asc", dynamic_hab_quality_landscape_list[[year+1]])
       } else {
         next_landscape <- sprintf("%s.asc", dynamic_hab_quality_landscape_list[[length(dynamic_hab_quality_landscape_list)]])
       }
       
+      # Load the next phenips value
       phenips <- phenips_list[year]
       if (is.na(phenips)) {
         stop(sprintf("No phenips value for year %s", year))
@@ -418,7 +422,10 @@ run_pausing_simulations <- function(
       if (!is.numeric(phenips)) {
         stop(sprintf("phenips value must be numeric"))
       }
+      # Apply phenips multiplier to the base Rmax
       sim_params@demog@Rmax <- phenips * base_rmax
+      
+      
       # RangeShiftR needs a backslash at end of path
       result <- RunRS(sim_params, sprintf("%s/", dirpath))
       
@@ -440,75 +447,75 @@ run_pausing_simulations <- function(
       terra::writeRaster(pop_rst, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_pop.tif", replicate,  year)))
       out_rasters <- c(out_rasters, pop_rst)
       
-      if (nrow(pop_shp) > 0) {
-        
-        df_pop_table <- extract_pop_shp_to_table(pop_shp)
-        new_init_inds_txt <- sprintf('rep%s_year%s_inds.txt', replicate, year)
-        write.table(df_pop_table, file.path(dirpath, "Inputs", new_init_inds_txt), row.names = F, quote = F, sep = '\t')
-        sim_params@init@InitIndsFile <- new_init_inds_txt
-        
-        # Create new adjusted habitat quality raster
-        if (sim_params@pausingextras@pop_impacts_quality) {
-          if (
-            (sim_params@pausingextras@apply_destruction_annually) |
-            (year %% sim_params@pausingextras@years_for_destruction == 0)
-          ) {
-            
-            new_quality_impact_rst <- calculate_pop_impact_on_hab_quality(
-              pop_rst=pop_rst,
-              years_for_destruction=sim_params@pausingextras@years_for_destruction,
-              apply_destruction_annually=sim_params@pausingextras@apply_destruction_annually,
-              sim_params=sim_params
-            )
-            
-            terra::writeRaster(new_quality_impact_rst, file.path(dirpath, "Output_maps", sprintf("rep%s_year%s_new_quality_impact.tif", replicate, year)))
-            
-            total_impact_hab_quality <- total_impact_hab_quality + new_quality_impact_rst
-            total_impact_hab_quality[total_impact_hab_quality>100] <- 100
-            
-            terra::writeRaster(total_impact_hab_quality, file.path(dirpath, "Output_maps", sprintf("rep%s_year%s_total_quality_impact.tif", replicate, year)))
-            
-            new_hab_qual_rst <- apply_pop_impact_on_hab_quality(
-              quality_impact=total_impact_hab_quality,
-              landscape=next_landscape,
-              sim_params=sim_params,
-              coord_ref_sys=crs(rst_lcm),
-              geom_extent=terra::ext(rst_lcm),
-              dirpath=dirpath
-            )
-            
-            if (year <= length(dynamic_hab_quality_landscape_list)) {
-              new_landscape_name <- sprintf("rep%s_year%s_%s", replicate, year, dynamic_hab_quality_landscape_list[[year]])
-            } else {
-              new_landscape_name <- sprintf("rep%s_year%s_%s", replicate, year, dynamic_hab_quality_landscape_list[[length(dynamic_hab_quality_landscape_list)]])
-            }
-            
-            terra::writeRaster(new_hab_qual_rst, file.path(dirpath, "Output_maps", sprintf("%s.tif", new_landscape_name)))
-            
-            write_ascii_raster(
-              raster=new_hab_qual_rst,
-              file_path=file.path(dirpath, "Inputs", sprintf("%s.asc", new_landscape_name)),
-              datatype="INT2S"
-            )
-                  
-            sim_params@land@LandscapeFile <- sprintf("%s.asc", new_landscape_name)
-            
-          }
-        } else {
-          sim_params@land@LandscapeFile <- next_landscape
-        }
-        
-        for (out_file in c("Pop", "Range", "Parameters")) {
-          file.rename(
-            file.path(dirpath, "Outputs", sprintf("Batch0_Sim0_Land1_%s.txt", out_file)),
-            file.path(dirpath, "Outputs", "file-per-pause", sprintf("rep%s_year%s_Batch0_Sim0_Land1_%s.txt", replicate, year, out_file))
-          )
-        }
-        
+      # If Population is zero, then break out of this simulation
+      if (nrow(pop_shp) == 0) {
+        cat("###########POPULATION OF ZERO -> SIMULATION ENDED EARLY##########\n")
+        break
       }
       
-      # If Population is zero, then break out of this simulation
-      if (nrow(pop_shp) == 0) break
+      # Create new inidividuals initialisation file to reinitialise rangeshiftR
+      # with same dsitribution of individuals as this year
+      df_pop_table <- extract_pop_shp_to_table(pop_shp)
+      new_init_inds_txt <- sprintf('rep%s_year%s_inds.txt', replicate, year)
+      write.table(df_pop_table, file.path(dirpath, "Inputs", new_init_inds_txt), row.names = F, quote = F, sep = '\t')
+      sim_params@init@InitIndsFile <- new_init_inds_txt
+      
+      # Create new adjusted habitat quality raster
+      if ((sim_params@pausingextras@pop_impacts_quality) &
+        ((sim_params@pausingextras@apply_destruction_annually) |
+          (year %% sim_params@pausingextras@years_for_destruction == 0))
+      ) {
+          
+        new_quality_impact_rst <- calculate_pop_impact_on_hab_quality(
+          pop_rst=pop_rst,
+          years_for_destruction=sim_params@pausingextras@years_for_destruction,
+          apply_destruction_annually=sim_params@pausingextras@apply_destruction_annually,
+          sim_params=sim_params
+        )
+        
+        terra::writeRaster(new_quality_impact_rst, file.path(dirpath, "Output_maps", sprintf("rep%s_year%s_new_quality_impact.tif", replicate, year)))
+        
+        total_impact_hab_quality <- total_impact_hab_quality + new_quality_impact_rst
+        total_impact_hab_quality[total_impact_hab_quality>100] <- 100
+        
+        terra::writeRaster(total_impact_hab_quality, file.path(dirpath, "Output_maps", sprintf("rep%s_year%s_total_quality_impact.tif", replicate, year)))
+        
+        new_hab_qual_rst <- apply_pop_impact_on_hab_quality(
+          quality_impact=total_impact_hab_quality,
+          landscape=next_landscape,
+          sim_params=sim_params,
+          coord_ref_sys=crs(rst_lcm),
+          geom_extent=terra::ext(rst_lcm),
+          dirpath=dirpath
+        )
+        
+        if (year+1 <= length(dynamic_hab_quality_landscape_list)) {
+          next_landscape_name <- sprintf("rep%s_year%s_%s", replicate, year, dynamic_hab_quality_landscape_list[[year+1]])
+        } else {
+          next_landscape_name <- sprintf("rep%s_year%s_%s", replicate, year, dynamic_hab_quality_landscape_list[[length(dynamic_hab_quality_landscape_list)]])
+        }
+        
+        terra::writeRaster(new_hab_qual_rst, file.path(dirpath, "Output_maps", sprintf("%s.tif", next_landscape_name)))
+        
+        next_landscape <- sprintf("%s.asc", next_landscape_name)
+        
+        write_ascii_raster(
+          raster=new_hab_qual_rst,
+          file_path=file.path(dirpath, "Inputs", next_landscape),
+          datatype="INT2S"
+        )
+          
+      }
+      
+      sim_params@land@LandscapeFile <- next_landscape
+      
+      for (out_file in c("Pop", "Range", "Parameters")) {
+        file.rename(
+          file.path(dirpath, "Outputs", sprintf("Batch0_Sim0_Land1_%s.txt", out_file)),
+          file.path(dirpath, "Outputs", "file-per-pause", sprintf("rep%s_year%s_Batch0_Sim0_Land1_%s.txt", replicate, year, out_file))
+        )
+      }
+      
       
     }
     out_rst_stack <- terra::rast(out_rasters)
