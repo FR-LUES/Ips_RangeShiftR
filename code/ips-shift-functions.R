@@ -138,22 +138,24 @@ create_habitat_and_initial_dist <- function(
   # terra::ext(rst_lcm) <- c(0, terra::ext(rst_lcm)[2]-terra::ext(rst_lcm)[1], 0, terra::ext(rst_lcm)[4]-terra::ext(rst_lcm)[3])
   # terra::ext(rst_species) <- c(0, terra::ext(rst_species)[2]-terra::ext(rst_species)[1], 0, terra::ext(rst_species)[4]-terra::ext(rst_species)[3])
   
-  write_ascii_raster(
-    raster=rst_lcm,
-    file_path=file.path(dirpath, extent_str, "hab_code.asc"),
-    datatype="INT2S"
+  terra::writeRaster(
+    rst_lcm,
+    file.path(dirpath, extent_str, "hab_code.asc"),
+    datatype="INT2S",
+    NAflag=-9999
   )
-  write_ascii_raster(
-    raster=rst_hab_quality,
-    file_path=file.path(dirpath, extent_str, "hab_quality.asc"),
-    datatype="INT2S"
+  terra::writeRaster(
+    rst_hab_quality,
+    file.path(dirpath, extent_str, "hab_quality.asc"),
+    datatype="INT2S",
+    NAflag=-9999
   )
-  write_ascii_raster(
-    raster=rst_species,
-    file_path=file.path(dirpath, extent_str, "initial_dist.asc"),
-    datatype="INT2S"
+  terra::writeRaster(
+    rst_species,
+    file.path(dirpath, extent_str, "initial_dist.asc"),
+    datatype="INT2S",
+    NAflag=-9999
   )
-  
 }
 
 
@@ -241,7 +243,6 @@ calculate_pop_impact_on_hab_quality <- function(
   } else {
     quality_impact <- ((pop_rst / carry_cap_per_pixel) * 100)
   }
-  cat("HERE: %s", global(quality_impact, mean)$mean)
   
   quality_impact <- round(quality_impact)
   
@@ -449,7 +450,7 @@ run_pausing_simulations <- function(
       
       # If Population is zero, then break out of this simulation
       if (nrow(pop_shp) == 0) {
-        cat("###########POPULATION OF ZERO -> SIMULATION ENDED EARLY##########\n")
+        cat("########### POPULATION OF ZERO -> SIMULATION ENDED EARLY ##########\n")
         break
       }
       
@@ -499,10 +500,11 @@ run_pausing_simulations <- function(
         
         next_landscape <- sprintf("%s.asc", next_landscape_name)
         
-        write_ascii_raster(
-          raster=new_hab_qual_rst,
-          file_path=file.path(dirpath, "Inputs", next_landscape),
-          datatype="INT2S"
+        terra::writeRaster(
+          new_hab_qual_rst,
+          file.path(dirpath, "Inputs", next_landscape),
+          datatype="INT2S",
+          NAflag=-9999
         )
           
       }
@@ -579,75 +581,4 @@ merge_output_pop_and_range <- function(
   write.table(df_pop,  file.path(dirpath, "Outputs", "Batch0_Sim0_Land1_Pop.txt"), row.names = F, quote = F, sep = '\t')
   write.table(df_range,  file.path(dirpath, "Outputs", "Batch0_Sim0_Land1_Range.txt"), row.names = F, quote = F, sep = '\t')
 }
-
-
-write_ascii_raster <- function(
-    raster,
-    file_path,
-    datatype
-) {
-  
-  terra::writeRaster(raster, file_path, datatype=datatype, NAflag=-9999)
-  
-  ascii_text <- readLines(file_path)
-  ascii_text[1] <- paste0(
-    gsub(
-      "\\s+",
-      " ",
-      gsub("ncols", "NCOLS", ascii_text[1])
-    ),
-    " "
-  )
-  ascii_text[2] <- paste0(
-    gsub(
-      "\\s+",
-      " ",
-      gsub("nrows", "NROWS", ascii_text[2])
-    ),
-    " "
-  )
-  ascii_text[3] <- paste0(
-    gsub(
-      "\\s+",
-      " ",
-      gsub("xllcorner", "XLLCORNER", unlist(strsplit(ascii_text[3], "[.]"))[1])
-    ),
-    " "
-  )
-  ascii_text[4] <- paste0(
-    gsub(
-      "\\s+",
-      " ",
-      gsub("yllcorner", "YLLCORNER", unlist(strsplit(ascii_text[4], "[.]"))[1])
-    ),
-    " "
-  )
-  ascii_text[5] <- paste0(
-    gsub(
-      "\\s+",
-      " ",
-      gsub("cellsize", "CELLSIZE", unlist(strsplit(ascii_text[5], "[.]"))[1])
-    ),
-    " "
-  )
-  ascii_text[6] <- paste0(
-    gsub(
-      "\\s+",
-      " ",
-      gsub("nodata_value", "NODATA_value", ascii_text[6])
-    ),
-    " "
-  )
-  
-  for (i in 7:length(ascii_text)) {
-    ascii_text[i] <- gsub("^.", "", ascii_text[i])
-  }
-  
-  write(ascii_text, file_path)
-  
-}
-
-
-
-
 
