@@ -611,16 +611,20 @@ merge_output_pop_and_range <- function(
             if (year < max_year) {
               df_pop <- subset(df_pop, Year == 0)
             }
-            df_pop$Year <- df_pop$Year + (year - 1)
-            df_pop$Rep <- rep_n
+            if (nrow(df_pop) > 0) {
+              df_pop$Year <- df_pop$Year + (year - 1)
+              df_pop$Rep <- rep_n
+            }
             pop_list[[i]] <- df_pop
             
             df_range <- read.table(range_txt_path, sep="\t", header=T)
             if (year < max_year) {
               df_range <- subset(df_range, Year == 0)
             }
-            df_range$Year <-  df_range$Year + (year - 1)
-            df_range$Rep <- rep_n
+            if (nrow(df_range) > 0) {
+              df_range$Year <-  df_range$Year + (year - 1)
+              df_range$Rep <- rep_n
+            }
             range_list[[i]] <- df_range
             
             i <- i + 1
