@@ -288,14 +288,21 @@ extract_pop_shp_to_table <- function(
     # "NInd" and "Sex" columns
     pop_shp_female$NInd <- pop_shp_female$Nfemales
     pop_shp_female <- pop_shp_female[, c("Year", "Species", "x", "y", "NInd")]
-    pop_shp_female$Sex <- 0
+    if (nrow(pop_shp_female) > 0) {
+      pop_shp_female$Sex <- 0
+    }
     
     pop_shp_male$NInd <- pop_shp_male$Nmales
     pop_shp_male <- pop_shp_male[, c("Year", "Species", "x", "y", "NInd")]
-    pop_shp_male$Sex <- 1
+    if (nrow(pop_shp_male) > 0) {
+      pop_shp_male$Sex <- 1
+    }
     
     pop_shp <- rbind(pop_shp_female, pop_shp_male)
-    pop_shp <- pop_shp[order(pop_shp$x, pop_shp$y, pop_shp$Sex),]
+    
+    if (nrow(pop_shp) > 0) {
+      pop_shp <- pop_shp[order(pop_shp$x, pop_shp$y, pop_shp$Sex),]
+    }
     
   } else {
     pop_shp <- pop_shp[, c("Year", "Species", "x", "y", "NInd")]
@@ -305,7 +312,9 @@ extract_pop_shp_to_table <- function(
   names(pop_shp)[names(pop_shp) == "y"] <- "Y"
   names(pop_shp)[names(pop_shp) == "NInd"] <- "Ninds"
   
-  pop_shp$Year <- 0
+  if (nrow(pop_shp) > 0) {
+    pop_shp$Year <- 0
+  }
   
   pop_shp <- pop_shp %>% st_drop_geometry()
   
@@ -448,25 +457,21 @@ run_pausing_simulations <- function(
       terra::writeRaster(pop_rst, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_pop.tif", replicate,  year)))
       out_rasters <- c(out_rasters, pop_rst)
       
-      # If Population is zero, then break out of this simulation
-      if (nrow(pop_shp) == 0) {
-        cat("########### POPULATION OF ZERO -> SIMULATION ENDED EARLY ##########\n")
-        break
-      }
-      
       # Create new inidividuals initialisation file to reinitialise rangeshiftR
       # with same dsitribution of individuals as this year
       df_pop_table <- extract_pop_shp_to_table(pop_shp)
+      
       new_init_inds_txt <- sprintf('rep%s_year%s_inds.txt', replicate, year)
       write.table(df_pop_table, file.path(dirpath, "Inputs", new_init_inds_txt), row.names = F, quote = F, sep = '\t')
       sim_params@init@InitIndsFile <- new_init_inds_txt
+      
       
       # Create new adjusted habitat quality raster
       if ((sim_params@pausingextras@pop_impacts_quality) &
         ((sim_params@pausingextras@apply_destruction_annually) |
           (year %% sim_params@pausingextras@years_for_destruction == 0))
       ) {
-          
+        
         new_quality_impact_rst <- calculate_pop_impact_on_hab_quality(
           pop_rst=pop_rst,
           years_for_destruction=sim_params@pausingextras@years_for_destruction,
@@ -518,6 +523,11 @@ run_pausing_simulations <- function(
         )
       }
       
+      # If Population is zero, then break out of this simulation
+      if (nrow(pop_shp) == 0) {
+        cat("########### POPULATION OF ZERO -> SIMULATION ENDED EARLY ##########\n")
+        break
+      }
       
     }
     out_rst_stack <- terra::rast(out_rasters)
@@ -548,37 +558,95 @@ merge_output_pop_and_range <- function(
     replicates,
     years
 ) {
-  pop_list <- list()
-  range_list <- list()
-  i <- 1
-  for (replicate in 1:replicates) {
-    for (year in 1:years) {
+
+  list_sim_files <- list.files(
+    path = file.path(dirpath, "Outputs", "file-per-pause"),
+    pattern = "rep\\d+_year\\d+_Batch\\d+_Sim\\d+_Land\\d+_Pop.txt"
+  )
+  
+  output_file_regex <- "rep(\\d+)_year(\\d+)_Batch(\\d+)_Sim(\\d+)_Land(\\d+)_Pop.txt"
+  land_list <- unique(as.numeric(gsub(output_file_regex, "\\5", list_sim_files)))
+  sim_list <- unique(as.numeric(gsub(output_file_regex, "\\4", list_sim_files)))
+  batch_list <- unique(as.numeric(gsub(output_file_regex, "\\3", list_sim_files)))
+  rep_list <- unique(as.numeric(gsub(output_file_regex, "\\1", list_sim_files)))
+  
+  for (land_n in land_list) {
+    for (sim_n in sim_list) {
+      for (batch_n in batch_list) {
+        
+        pop_list <- list()
+        range_list <- list()
+        i <- 1
+        
+        for (rep_n in rep_list) {
+          
+          current_file_list <- list_sim_files[grepl(
+            sprintf("rep%s_year(\\d+)_Batch%s_Sim%s_Land%s_Pop.txt", rep_n, batch_n, sim_n, land_n),
+            list_sim_files
+          )]
+          current_file_list <- current_file_list[order(current_file_list)]
+          
+          max_year <- max(as.numeric(gsub(
+            sprintf("rep%s_year(\\d+)_Batch%s_Sim%s_Land%s_Pop.txt", rep_n, batch_n, sim_n, land_n),
+            "\\1",
+            current_file_list
+          )))
+        
+          for (year in 1:max_year) {
+            
+            pop_txt_path <- file.path(
+              dirpath,
+              "Outputs",
+              "file-per-pause",
+              sprintf("rep%s_year%s_Batch%s_Sim%s_Land%s_Pop.txt", rep_n, year, batch_n, sim_n, land_n)
+            )
+            range_txt_path <- file.path(
+              dirpath,
+              "Outputs",
+              "file-per-pause",
+              sprintf("rep%s_year%s_Batch%s_Sim%s_Land%s_Range.txt", rep_n, year, batch_n, sim_n, land_n)
+            )
+              
+            df_pop <- read.table(pop_txt_path, sep="\t", header=T)
+            if (year < max_year) {
+              df_pop <- subset(df_pop, Year == 0)
+            }
+            df_pop$Year <- df_pop$Year + (year - 1)
+            df_pop$Rep <- rep_n
+            pop_list[[i]] <- df_pop
+            
+            df_range <- read.table(range_txt_path, sep="\t", header=T)
+            if (year < max_year) {
+              df_range <- subset(df_range, Year == 0)
+            }
+            df_range$Year <-  df_range$Year + (year - 1)
+            df_range$Rep <- rep_n
+            range_list[[i]] <- df_range
+            
+            i <- i + 1
+            
+          }
+        }
+        
+        df_pop = do.call(rbind, pop_list)
+        df_range = do.call(rbind, range_list)
+        write.table(
+          df_pop,
+          file.path(dirpath, "Outputs", sprintf("Batch%s_Sim%s_Land%s_Pop.txt", batch_n, sim_n, land_n)),
+          row.names = F,
+          quote = F,
+          sep = '\t'
+        )
+        write.table(
+          df_range,
+          file.path(dirpath, "Outputs", sprintf("Batch%s_Sim%s_Land%s_Range.txt", batch_n, sim_n, land_n)),
+          row.names = F,
+          quote = F,
+          sep = '\t'
+        )
       
-      pop_txt_path <- file.path(dirpath, "Outputs", "file-per-pause", sprintf("rep%s_year%s_Batch0_Sim0_Land1_Pop.txt", replicate, year))
-      range_txt_path <- file.path(dirpath, "Outputs", "file-per-pause", sprintf("rep%s_year%s_Batch0_Sim0_Land1_Range.txt", replicate, year))
-      
-      if (file.exists(pop_txt_path) & file.exists(range_txt_path)) {
-        
-        df_pop <- read.table(pop_txt_path, sep="\t", header=T)
-        df_pop <- subset(df_pop, Year == 0)
-        df_pop$Year <- year-1
-        df_pop$Rep <- replicate
-        pop_list[[i]] <- df_pop
-        
-        df_range <- read.table(range_txt_path, sep="\t", header=T)
-        df_range <- subset(df_range, Year == 0)
-        df_range$Year <- year-1
-        df_range$Rep <- replicate
-        range_list[[i]] <- df_range
-        
-        i <- i + 1
-        
       }
     }
   }
-  df_pop = do.call(rbind, pop_list)
-  df_range = do.call(rbind, range_list)
-  write.table(df_pop,  file.path(dirpath, "Outputs", "Batch0_Sim0_Land1_Pop.txt"), row.names = F, quote = F, sep = '\t')
-  write.table(df_range,  file.path(dirpath, "Outputs", "Batch0_Sim0_Land1_Range.txt"), row.names = F, quote = F, sep = '\t')
 }
 
