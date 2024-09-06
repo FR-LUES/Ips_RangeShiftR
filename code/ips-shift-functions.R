@@ -535,6 +535,9 @@ run_pausing_simulations <- function(
     
   }
   
+  # Delete input data
+  do.call(file.remove, list(list.files(file.path(dirpath, "Inputs"), full.names = TRUE)))
+
   merge_output_pop_and_range(dirpath, replicates, years)
   
   
