@@ -86,6 +86,7 @@ apply_destruction_annually_list <- c(FALSE) # c(FALSE, TRUE)
 phenips_list <- c(phenips) # CANNOT USE MULTIPLE VERSIONS OF PHENIPS PER SIM BATCH
 dynamic_hab_quality_landscapes <- c("hab_qual_1", "hab_qual_2", "hab_qual_3", "hab_qual_4", "hab_qual_5")
 dynamic_hab_quality_years <- c(0, 4, 8, 12, 16)
+delete_output_maps <- TRUE
 
 
 ## CREATE LIST OF LANDSCAPES TO USE FOR EACH YEAR
@@ -215,16 +216,17 @@ for(i in 1:nrow(df_params)) {
     phenips=phenips,
     dynamic_hab_quality_landscape_list=dynamic_hab_quality_landscape_list
   )
-  
+
   validateRSparams(sim_params)
-  
-  
+
+
   run_pausing_simulations(
     sim_params = sim_params,
     input_data_path = input_data_path,
-    dirpath = dirpath
+    dirpath = dirpath,
+    delete_output_maps = delete_output_maps
   )
-  
-  
+
+
 }
 
