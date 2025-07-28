@@ -20,10 +20,9 @@ values(r) <- rep(100, ncell(r))
 NAflag(r) <- -9999
 
 # View raster summary
-r
-plot(r)
+
 # Write to ASCII
-writeRaster(r, "../data/processed/hab_map_qual.asc", filetype="AAIGrid", NAflag=-9999, overwrite=TRUE)
+writeRaster(r, "../../data/processed/hab_map_qual.asc", filetype="AAIGrid", NAflag=-9999, overwrite=TRUE)
 
 # Write to GeoTIFF
 writeRaster(r, "../data/processed/hab_map_qual.tif", filetype="GTiff", NAflag=-9999, overwrite=TRUE)

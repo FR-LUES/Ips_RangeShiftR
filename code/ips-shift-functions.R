@@ -682,8 +682,8 @@ Run_sims <- function(Inds_file_name,
            AlphaDB,
            BetaDB) {
     
-    input_data_path <- "Z:/Common/Fiona Plenderleith/IpsShift2/Rmax_model/data/processed/"
-    output_path <- "Z:/Common/Fiona Plenderleith/IpsShift2/Rmax_model/outputs"
+    input_data_path <- "../data/processed/"
+    output_path <- "../outputs"
     
     
     aggregation_factor <- 1
