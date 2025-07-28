@@ -675,6 +675,7 @@ Run_sims <- function(Inds_file_name,
            dens_inflection,
            dens_slope,
            DP,
+           PR,
            MemSize,
            GoalType,
            GoalBias,
@@ -876,6 +877,8 @@ Run_sims <- function(Inds_file_name,
         Transfer = SMS(
           DP = DP,
           # Dispersal propensity
+           PR = PR,
+            #Perceptual Range
           MemSize = MemSize,
           # Memory of past steps
           GoalType = GoalType,
