@@ -22,7 +22,7 @@ NAflag(r) <- -9999
 # View raster summary
 
 # Write to ASCII
-writeRaster(r, "../../data/processed/hab_map_qual.asc", filetype="AAIGrid", NAflag=-9999, overwrite=TRUE)
+writeRaster(r, "../data/processed/hab_map_qual.asc", filetype="AAIGrid", NAflag=-9999, overwrite=TRUE)
 
 # Write to GeoTIFF
 writeRaster(r, "../data/processed/hab_map_qual.tif", filetype="GTiff", NAflag=-9999, overwrite=TRUE)
