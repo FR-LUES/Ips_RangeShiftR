@@ -69,6 +69,7 @@ writeRaster(r_cost, "../data/processed/cost_map.tif", filetype="GTiff", NAflag=-
   dens_inflection = batches$dens_inflection
   dens_slope = batches$dens_slope
   DP = batches$DP
+  PR = batches$PR
   MemSize= batches$MemSize
   GoalType= batches$GoalType
   GoalBias= batches$GoalBias
@@ -107,6 +108,7 @@ writeRaster(r_cost, "../data/processed/cost_map.tif", filetype="GTiff", NAflag=-
                                  dens_inflection,
                                  dens_slope,
                                  DP,
+                                 PR,
                                  MemSize,
                                  GoalType,
                                  GoalBias,
