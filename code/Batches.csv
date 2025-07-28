@@ -1,3 +1,3 @@
-﻿Batch name,reps,habitat_rst_name,cost_map_name,Inds_file_name,Phenips,DP,MemSize,GoalType,GoalBias,AlphaDB,BetaDB,dens_inflection,dens_slope
+﻿Batch name,reps,habitat_rst_name,cost_map_name,Inds_file_name,Phenips,DP, PR, MemSize,GoalType,GoalBias,AlphaDB,BetaDB,dens_inflection,dens_slope
 Test1,1,hab_map_qual,cost_map,summinds_sex.txt,Z:/Common/Fiona Plenderleith/IpsShift2/Rmax_model/data/processed/phenips1.csv,1.8,2,2,2.5,0.4,10,10,0.05
 Test2,1,hab_map_qual,cost_map,summinds_sex.txt,Z:/Common/Fiona Plenderleith/IpsShift2/Rmax_model/data/processed/phenips1.csv,1.8,2,2,2.5,0.4,10,10,0.05
