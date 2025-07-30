@@ -702,7 +702,7 @@ Run_sims <- function(Inds_file_name,
     # Note the parameters currently listed are the only ones that have been
     # configured for control in this batch mode. Any additional parameters will
     # need to be set up.
-    rmax_list <- c(0.5, 2, 5, 10)  # c(5, 10, 20)
+    rmax_list <- c(0.5, 1.2, 5, 10)  # c(5, 10, 20)
     D0_list <- c(0.7)
     alpha_list <- c(10)
     beta_list <- c(0.5)
@@ -868,7 +868,7 @@ Run_sims <- function(Inds_file_name,
       )
       
       demo <- Demography(ReproductionType = 1,  # sexual
-                         Rmax = rmax)
+                         Rmax = rmax, bc = 2)
       
       disp <- Dispersal(
         Emigration = Emigration(DensDep = TRUE,
@@ -891,7 +891,7 @@ Run_sims <- function(Inds_file_name,
           # Density bias beta
           Costs = "file",
           # Raster of movement costs
-          StepMort = 0.1        # Mortality per step
+          StepMort = 0.1      # Mortality per step
         ),
         
         Settlement = Settlement(

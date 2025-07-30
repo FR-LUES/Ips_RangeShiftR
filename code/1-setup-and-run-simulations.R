@@ -2,34 +2,43 @@ library(uuid)
 library(RangeShiftR)
 library(readxl)
 library(openxlsx)
-
+library(terra)
 
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 source("ips-shift-functions.R")
 
 ## create mock basic landscapes ####
 
-# Create a 4x4 raster with 25m resolution
-r <- rast(nrows=4, ncols=4, xmin=0, xmax=100, ymin=0, ymax=100, crs="EPSG:27700")
+# # Create a 4x4 raster with 25m resolution
+# r <- rast(nrows=4, ncols=4, xmin=0, xmax=100, ymin=0, ymax=100, crs="EPSG:27700")
+# 
+# # Assign values: one cell with 100, others NA
+# values(r) <- rep(100, ncell(r))
+# #values(r)[1] <- 100
+# 
+# # Set NA flag
+# NAflag(r) <- -9999
+# 
+# # View raster summary
+# 
+# # Write to ASCII
+# writeRaster(r, "../data/processed/hab_map_qual.asc", filetype="AAIGrid", NAflag=-9999, overwrite=TRUE)
+# 
+# # Write to GeoTIFF
+# writeRaster(r, "../data/processed/hab_map_qual.tif", filetype="GTiff", NAflag=-9999, overwrite=TRUE)
+# 
+# 
+# 
 
-# Assign values: one cell with 100, others NA
-values(r) <- rep(100, ncell(r))
-#values(r)[1] <- 100
 
-# Set NA flag
-NAflag(r) <- -9999
-
-# View raster summary
-
-# Write to ASCII
-writeRaster(r, "../data/processed/hab_map_qual.asc", filetype="AAIGrid", NAflag=-9999, overwrite=TRUE)
-
-# Write to GeoTIFF
-writeRaster(r, "../data/processed/hab_map_qual.tif", filetype="GTiff", NAflag=-9999, overwrite=TRUE)
+plot(r_cost)
 
 
+# cosr rater with uniform cost from hab_qual map - need to improve this
 
-# Create a 4x4 raster with 25m resolution
+r_cost <- rast("../data/processed/hab_map_qual_fixed_projection.asc")
+
+#hab_map_qual_fixed_projection
 r_cost <- rast(nrows=4, ncols=4, xmin=0, xmax=100, ymin=0, ymax=100, crs="EPSG:27700")
 
 # Assign values: one cell with 100, others NA
