@@ -702,7 +702,7 @@ Run_sims <- function(Inds_file_name,
     # Note the parameters currently listed are the only ones that have been
     # configured for control in this batch mode. Any additional parameters will
     # need to be set up.
-    rmax_list <- c(0.5, 2, 10, 20)  # c(5, 10, 20)
+    rmax_list <- c(0.5, 2, 5, 10)  # c(5, 10, 20)
     D0_list <- c(0.7)
     alpha_list <- c(10)
     beta_list <- c(0.5)
@@ -710,12 +710,12 @@ Run_sims <- function(Inds_file_name,
     long_range_dist_list <- c(5000)
     short_dist_prob_list <- c(0.995) # c(0.995, 0.99, 0.95)
     carrying_capacity_list <-
-      c(200000) # c(100, 200, 300, 400, 1000, 5000)
+      c(1000, 2000, 50000, 200000) # c(100, 200, 300, 400, 1000, 5000)
     replicates_list <- c(10)
     years_list <- c(50)
     # Additional parameters for interaction with the landscape
-    years_for_destruction_list <- c(60) # c(2, 5, 10, 20)
-    apply_destruction_annually_list <- c(FALSE) # c(FALSE, TRUE)
+    years_for_destruction_list <- c(5) # c(2, 5, 10, 20)
+    apply_destruction_annually_list <- c(TRUE) # c(FALSE, TRUE)
     phenips_list <-
       c(phenips) # CANNOT USE MULTIPLE VERSIONS OF PHENIPS PER SIM BATCH
     
@@ -891,7 +891,7 @@ Run_sims <- function(Inds_file_name,
           # Density bias beta
           Costs = "file",
           # Raster of movement costs
-          StepMort = 0.01        # Mortality per step
+          StepMort = 0.1        # Mortality per step
         ),
         
         Settlement = Settlement(
@@ -901,8 +901,8 @@ Run_sims <- function(Inds_file_name,
           FindMate = c(TRUE, FALSE),
           # Female requires mate, male does not
           Settle = matrix(
-            c(0, 1, dens_inflection, dens_slope,  # Female: αS = dens_inflection, βS = dens_slope
-              1, 1, dens_inflection, dens_slope),   # Male: same),
+            c(0, 0.4, dens_inflection, dens_slope,  # Female: αS = dens_inflection, βS = dens_slope
+              1, 0.4, dens_inflection, dens_slope),   # Male: same),
               ncol = 4,
               byrow = TRUE
             ),
