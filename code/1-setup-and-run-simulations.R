@@ -31,7 +31,7 @@ source("ips-shift-functions.R")
 # 
 
 
-plot(r_cost)
+#plot(r_cost)
 
 
 # cosr rater with uniform cost from hab_qual map - need to improve this
@@ -39,7 +39,7 @@ plot(r_cost)
 r_cost <- rast("../data/processed/hab_map_qual_fixed_projection.asc")
 
 #hab_map_qual_fixed_projection
-r_cost <- rast(nrows=4, ncols=4, xmin=0, xmax=100, ymin=0, ymax=100, crs="EPSG:27700")
+#r_cost <- rast(nrows=4, ncols=4, xmin=0, xmax=100, ymin=0, ymax=100, crs="EPSG:27700")
 
 # Assign values: one cell with 100, others NA
 values(r_cost) <- rep(1, ncell(r_cost))
@@ -52,11 +52,11 @@ NAflag(r_cost) <- -9999
 r_cost
 plot(r_cost)
 # Write to ASCII
-writeRaster(r_cost, "../data/processed/cost_map.asc", filetype="AAIGrid", NAflag=-9999, overwrite=TRUE)
-
-# Write to GeoTIFF
-writeRaster(r_cost, "../data/processed/cost_map.tif", filetype="GTiff", NAflag=-9999, overwrite=TRUE)
-
+# writeRaster(r_cost, "../data/processed/cost_map.asc", filetype="AAIGrid", NAflag=-9999, overwrite=TRUE)
+# 
+# # Write to GeoTIFF
+# writeRaster(r_cost, "../data/processed/cost_map.tif", filetype="GTiff", NAflag=-9999, overwrite=TRUE)
+# 
 
 ############# set up batch processing ####
   
@@ -64,9 +64,14 @@ writeRaster(r_cost, "../data/processed/cost_map.tif", filetype="GTiff", NAflag=-
   
   library(parallel)
   
-  cl <- parallel::makeCluster(detectCores())
-  
+ # cl <- parallel::makeCluster(detectCores())
+  cl <- parallel::makeCluster(detectCores()/2)
+  cl
   batches <- read.csv("../code/batches.csv")
+
+
+  
+ 
   
   phenips = batches$Phenips
   Batch_num = batches$Batch.name
@@ -84,8 +89,10 @@ writeRaster(r_cost, "../data/processed/cost_map.tif", filetype="GTiff", NAflag=-
   AlphaDB= batches$AlphaDB
   BetaDB= batches$BetaDB
   
-
-  
+  # Inds_file_name <- normalizePath(Inds_file_name, mustWork = FALSE)
+  # habitat_rst_name <- normalizePath(habitat_rst_name, mustWork = FALSE)
+  # cost_map_name <- normalizePath(cost_map_name, mustWork = FALSE)
+  # 
   envir <- environment()
   parallel::clusterExport(cl, varlist = ls(envir), envir = envir)
 
@@ -125,10 +132,7 @@ writeRaster(r_cost, "../data/processed/cost_map.tif", filetype="GTiff", NAflag=-
   
   
   parallel::stopCluster(cl)
-  
-  
-  
-  
-  
+# 
+#   
+#   
 
-  

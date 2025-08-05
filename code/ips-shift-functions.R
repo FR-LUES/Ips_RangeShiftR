@@ -202,8 +202,7 @@ extract_pop_raster_to_shp <- function(
 }
 
 
-
-
+# 
 extract_pop_file_to_shp <- function(
     sim_params,
     coord_ref_sys,
@@ -227,12 +226,17 @@ extract_pop_file_to_shp <- function(
 
 
 
+
 calculate_pop_impact_on_hab_quality <- function(
     pop_rst,
     years_for_destruction,
     apply_destruction_annually,
     sim_params
 ) {
+  # Ensure pop_rst is single-band #TEST####
+  if (terra::nlyr(pop_rst) > 1) {       #TEST####
+    pop_rst <- pop_rst[[1]]       #TEST####
+  }        #TEST####
   
   # Calculate carrying capacity per pixel
   # Rangeshifter stores it as per hectare
@@ -267,6 +271,11 @@ apply_pop_impact_on_hab_quality <- function(
   
   hab_qual_rst <- round(initial_hab_qual_rst - quality_impact)
   hab_qual_rst[hab_qual_rst < 0] <- 0
+  
+  hab_qual_rst[is.na(hab_qual_rst)] <- 0 #test
+  
+  # Force integer type
+  hab_qual_rst <- terra::as.int(hab_qual_rst) #test
   
   return(hab_qual_rst)
   
@@ -448,7 +457,7 @@ run_pausing_simulations <- function(
         terra::ext(rst_lcm),
         dirpath
       )
-      st_write(pop_shp, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_pop.geojson", replicate,  year)))
+       st_write(pop_shp, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_pop.geojson", replicate,  year)))
       
       pop_rst <- extract_pop_shp_to_rst(
         pop_shp,
@@ -504,6 +513,7 @@ run_pausing_simulations <- function(
         terra::writeRaster(new_hab_qual_rst, file.path(dirpath, "Output_maps", sprintf("%s.tif", next_landscape_name)))
         
         next_landscape <- sprintf("%s.asc", next_landscape_name)
+       #new_hab_qual_rst <- terra::as.int(new_hab_qual_rst)
         
         terra::writeRaster(
           new_hab_qual_rst,
@@ -511,7 +521,7 @@ run_pausing_simulations <- function(
           datatype="INT2S",
           NAflag=-9999
         )
-        
+        # error here ####
       }
       
       sim_params@land@LandscapeFile <- next_landscape
@@ -682,9 +692,9 @@ Run_sims <- function(Inds_file_name,
            AlphaDB,
            BetaDB) {
     
-    input_data_path <- "../data/processed/"
-    output_path <- "../outputs"
-    
+  input_data_path <- normalizePath("../data/processed/")
+  output_path <- normalizePath("../outputs")
+  
     
     aggregation_factor <- 1
     pixel_size <- 25 * aggregation_factor
@@ -702,7 +712,7 @@ Run_sims <- function(Inds_file_name,
     # Note the parameters currently listed are the only ones that have been
     # configured for control in this batch mode. Any additional parameters will
     # need to be set up.
-    rmax_list <- c(0.5, 1.2, 5, 10)  # c(5, 10, 20)
+    rmax_list <- c(2, 4)  # c(5, 10, 20)
     D0_list <- c(0.7)
     alpha_list <- c(10)
     beta_list <- c(0.5)
@@ -710,12 +720,12 @@ Run_sims <- function(Inds_file_name,
     long_range_dist_list <- c(5000)
     short_dist_prob_list <- c(0.995) # c(0.995, 0.99, 0.95)
     carrying_capacity_list <-
-      c(1000, 2000, 50000, 200000) # c(100, 200, 300, 400, 1000, 5000)
-    replicates_list <- c(10)
+      c(2000, 10000) # c(100, 200, 300, 400, 1000, 5000)
+    replicates_list <- c(2)
     years_list <- c(50)
     # Additional parameters for interaction with the landscape
-    years_for_destruction_list <- c(5) # c(2, 5, 10, 20)
-    apply_destruction_annually_list <- c(TRUE) # c(FALSE, TRUE)
+    years_for_destruction_list <- c(55) # c(2, 5, 10, 20)
+    apply_destruction_annually_list <- c(FALSE) # c(FALSE, TRUE)
     phenips_list <-
       c(phenips) # CANNOT USE MULTIPLE VERSIONS OF PHENIPS PER SIM BATCH
     
@@ -853,7 +863,7 @@ Run_sims <- function(Inds_file_name,
                   file.path(dirpath, "Inputs"))
       }
       
-      file.copy(file.path(input_data_path, "summinds_sex.txt"),
+      file.copy(file.path(input_data_path, Inds_file_name),
                 file.path(dirpath, "Inputs"))
       
       
@@ -868,7 +878,7 @@ Run_sims <- function(Inds_file_name,
       )
       
       demo <- Demography(ReproductionType = 1,  # sexual
-                         Rmax = rmax, bc = 2)
+                         Rmax = rmax, bc = 1)
       
       disp <- Dispersal(
         Emigration = Emigration(DensDep = TRUE,
@@ -891,7 +901,7 @@ Run_sims <- function(Inds_file_name,
           # Density bias beta
           Costs = "file",
           # Raster of movement costs
-          StepMort = 0.1      # Mortality per step
+          StepMort = 0.005      # Mortality per step
         ),
         
         Settlement = Settlement(
@@ -901,20 +911,20 @@ Run_sims <- function(Inds_file_name,
           FindMate = c(TRUE, FALSE),
           # Female requires mate, male does not
           Settle = matrix(
-            c(0, 0.4, dens_inflection, dens_slope,  # Female: αS = dens_inflection, βS = dens_slope
-              1, 0.4, dens_inflection, dens_slope),   # Male: same),
+            c(0, 1, dens_inflection, dens_slope,  # Female: αS = dens_inflection, βS = dens_slope
+              1, 1, dens_inflection, dens_slope),   # Male: same),
               ncol = 4,
               byrow = TRUE
             ),
             MinSteps = 1,
-            MaxSteps = 100,
-            MaxStepsYear = 100
+            MaxSteps = 1000,
+            MaxStepsYear = 1000
           )
         )
       
       
       init <- Initialise(InitType = 2, # Initialise from individuals list
-                         InitIndsFile = "summinds_sex.txt")
+                         InitIndsFile = Inds_file_name)
       
       
       sim <- Simulation(
@@ -961,3 +971,4 @@ Run_sims <- function(Inds_file_name,
       
     }
   }
+
