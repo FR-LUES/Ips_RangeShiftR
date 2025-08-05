@@ -233,11 +233,7 @@ calculate_pop_impact_on_hab_quality <- function(
     apply_destruction_annually,
     sim_params
 ) {
-  # Ensure pop_rst is single-band #TEST####
-  if (terra::nlyr(pop_rst) > 1) {       #TEST####
-    pop_rst <- pop_rst[[1]]       #TEST####
-  }        #TEST####
-  
+
   # Calculate carrying capacity per pixel
   # Rangeshifter stores it as per hectare
   carry_cap_per_pixel <- sim_params@land@K_or_DensDep * (sim_params@land@Resolution^2 / 10000)
@@ -272,11 +268,11 @@ apply_pop_impact_on_hab_quality <- function(
   hab_qual_rst <- round(initial_hab_qual_rst - quality_impact)
   hab_qual_rst[hab_qual_rst < 0] <- 0
   
-  hab_qual_rst[is.na(hab_qual_rst)] <- 0 #test
-  
-  # Force integer type
-  hab_qual_rst <- terra::as.int(hab_qual_rst) #test
-  
+  # hab_qual_rst[is.na(hab_qual_rst)] <- 0 #test
+  # 
+  # # Force integer type
+  # hab_qual_rst <- terra::as.int(hab_qual_rst) #test
+  # 
   return(hab_qual_rst)
   
 }
@@ -712,7 +708,7 @@ Run_sims <- function(Inds_file_name,
     # Note the parameters currently listed are the only ones that have been
     # configured for control in this batch mode. Any additional parameters will
     # need to be set up.
-    rmax_list <- c(2, 4)  # c(5, 10, 20)
+    rmax_list <- c(2, 4)  # c(5, 10, 20) # perhaps this step should be in the run_sims script ? 
     D0_list <- c(0.7)
     alpha_list <- c(10)
     beta_list <- c(0.5)
