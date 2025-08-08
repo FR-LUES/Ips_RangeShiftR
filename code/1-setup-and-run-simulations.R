@@ -36,7 +36,7 @@ source("ips-shift-functions.R")
 
 # cosr rater with uniform cost from hab_qual map - need to improve this
 
-r_cost <- rast("../data/processed/hab_map_qual_fixed_projection.asc")
+r_cost <- rast("../data/processed/quality_cropped.asc")
 
 #hab_map_qual_fixed_projection
 #r_cost <- rast(nrows=4, ncols=4, xmin=0, xmax=100, ymin=0, ymax=100, crs="EPSG:27700")
@@ -52,10 +52,10 @@ NAflag(r_cost) <- -9999
 r_cost
 plot(r_cost)
 # Write to ASCII
-# writeRaster(r_cost, "../data/processed/cost_map.asc", filetype="AAIGrid", NAflag=-9999, overwrite=TRUE)
+ writeRaster(r_cost, "../data/processed/cost_map.asc", filetype="AAIGrid", NAflag=-9999, overwrite=TRUE)
 # 
 # # Write to GeoTIFF
-# writeRaster(r_cost, "../data/processed/cost_map.tif", filetype="GTiff", NAflag=-9999, overwrite=TRUE)
+writeRaster(r_cost, "../data/processed/cost_map.tif", filetype="GTiff", NAflag=-9999, overwrite=TRUE)
 # 
 
 ############# set up batch processing ####

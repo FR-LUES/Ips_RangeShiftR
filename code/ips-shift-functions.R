@@ -691,6 +691,13 @@ Run_sims <- function(Inds_file_name,
   input_data_path <- normalizePath("../data/processed/")
   output_path <- normalizePath("../outputs")
   
+  
+  # Check if the batch folder already exists
+  if (dir.exists(sim_batch_path)) {
+    message(sprintf("Batch '%s' already exists. Skipping...", Batch_num))
+    return(NULL)
+  }
+  
     
     aggregation_factor <- 1
     pixel_size <- 25 * aggregation_factor
@@ -708,7 +715,7 @@ Run_sims <- function(Inds_file_name,
     # Note the parameters currently listed are the only ones that have been
     # configured for control in this batch mode. Any additional parameters will
     # need to be set up.
-    rmax_list <- c(2, 4)  # c(5, 10, 20) # perhaps this step should be in the run_sims script ? 
+    rmax_list <- c(2, 4, 6)  # c(5, 10, 20) # perhaps this step should be in the run_sims script ? 
     D0_list <- c(0.7)
     alpha_list <- c(10)
     beta_list <- c(0.5)
@@ -716,7 +723,7 @@ Run_sims <- function(Inds_file_name,
     long_range_dist_list <- c(5000)
     short_dist_prob_list <- c(0.995) # c(0.995, 0.99, 0.95)
     carrying_capacity_list <-
-      c(2000, 10000) # c(100, 200, 300, 400, 1000, 5000)
+      c(2000, 10000, 50000) # c(100, 200, 300, 400, 1000, 5000)
     replicates_list <- c(2)
     years_list <- c(50)
     # Additional parameters for interaction with the landscape
@@ -888,12 +895,11 @@ Run_sims <- function(Inds_file_name,
           MemSize = MemSize,
           # Memory of past steps
           GoalType = GoalType,
-          # Goal = suitable habitat
           GoalBias = GoalBias,
           # Strength of goal orientation
-          AlphaDB = AlphaDB,
+      #    AlphaDB = AlphaDB,
           # Density bias alpha
-          BetaDB = BetaDB,
+      #    BetaDB = BetaDB,
           # Density bias beta
           Costs = "file",
           # Raster of movement costs
