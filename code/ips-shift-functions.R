@@ -1,60 +1,3 @@
-
-####### LCM
-# 1	Broadleaved woodland
-# 2	Coniferous woodland
-# 3	Arable
-# 4	Improved grassland
-# 5	Neutral grassland
-# 6	Calcareous grassland
-# 7	Acid grassland
-# 8	Fen, Marsh and Swamp
-# 9	Heather and shrub
-# 10	Heather grassland
-# 11	Bog
-# 12	Inland rock
-# 13	Saltwater
-# 14	Freshwater
-# 15	Supralittoral rock
-# 16	Supralittoral sediment
-# 17	Littoral rock
-# 18	Littoral sediment
-# 19	Saltmarsh
-# 20	Urban
-# 21	Suburban
-
-####### NFI
-# 1	Agriculture land
-# 2	Assumed woodland
-# 3	Bare area
-# 4	Broadleaved
-# 5	Conifer <<<<<<<<<<
-# 6	Coppice
-# 7	Coppice with standards
-# 8	Failed
-# 9	Felled
-# 10	Grassland
-# 11	Ground prep
-# 12	Low density
-# 13	Mixed mainly broadleaved
-# 14	Mixed mainly conifer <<<<<<<
-# 15	Open water
-# 16	Other vegetation
-# 17	Powerline
-# 18	Quarry
-# 19	River
-# 20	Road
-# 21	Shrub
-# 22	Uncertain
-# 23	Urban
-# 24	Windblow
-# 25	Young trees
-
-
-####### Spruce Map
-# 1 Spruce
-
-
-
 library(terra)
 library(sf)
 
@@ -348,7 +291,8 @@ PausingExtras <- function(
     years_for_destruction,
     apply_destruction_annually,
     phenips,
-    dynamic_hab_quality_landscape_list
+    dynamic_landscapes_list,
+    dynamic_cost_maps_list
 ) {
   
   setClass(
@@ -360,7 +304,8 @@ PausingExtras <- function(
       years_for_destruction="numeric",
       apply_destruction_annually="logical",
       phenips="list",
-      dynamic_hab_quality_landscape_list="list"
+      dynamic_landscapes_list="list",
+      dynamic_cost_maps_list="list"
     )
   )
   
@@ -372,7 +317,8 @@ PausingExtras <- function(
     years_for_destruction=years_for_destruction,
     apply_destruction_annually=apply_destruction_annually,
     phenips=phenips,
-    dynamic_hab_quality_landscape_list=dynamic_hab_quality_landscape_list
+    dynamic_landscapes_list=dynamic_landscapes_list,
+    dynamic_cost_maps_list=dynamic_cost_maps_list
   )
   
   return(pausingextras)
@@ -392,13 +338,16 @@ run_pausing_simulations <- function(
   replicates <- sim_params@pausingextras@replicates
   years <- sim_params@pausingextras@years
   carrying_capacity <- sim_params@land@K_or_DensDep
-  phenips_list <- sim_params@pausingextras@phenips[[1]]
+  phenips_list <- sim_params@pausingextras@phenips
   base_rmax <- sim_params@demog@Rmax
-  dynamic_hab_quality_landscape_list <- sim_params@pausingextras@dynamic_hab_quality_landscape_list
+  dynamic_landscapes_list <- sim_params@pausingextras@dynamic_landscapes_list
+  dynamic_cost_maps_list <- sim_params@pausingextras@dynamic_cost_maps_list
   
-  rst_lcm <- terra::rast(file.path(dirpath, "Inputs", sprintf("%s.tif", habitat_rst_name)))
-  total_impact_hab_quality <- rst_lcm
-  total_impact_hab_quality[total_impact_hab_quality>=0] <- 0
+  rst_lcm <- terra::rast(file.path(
+    dirpath,
+    "Inputs",
+    sprintf("%s.tif", tools::file_path_sans_ext(basename(dynamic_landscapes_list[[1]])))
+  ))
   
   start_init <- sim_params@init
   start_land <- sim_params@land
@@ -408,7 +357,10 @@ run_pausing_simulations <- function(
     # Reset initialisation and land parameters ready to start next replicate
     sim_params@init <- start_init
     sim_params@land <- start_land
-    sim_params@land@LandscapeFile <- sprintf("%s.asc", dynamic_hab_quality_landscape_list[[1]])
+    sim_params@land@LandscapeFile <- sprintf("%s.asc", tools::file_path_sans_ext(basename(dynamic_landscapes_list[[1]])))
+    sim_params@land@CostsFile <- sprintf("%s.asc", tools::file_path_sans_ext(basename(dynamic_cost_maps_list[[1]])))
+    total_impact_hab_quality <- rst_lcm
+    total_impact_hab_quality[total_impact_hab_quality>=0] <- 0
     
     # Empty raster list to store a stack of population rasters
     out_rasters <- c()
@@ -418,14 +370,19 @@ run_pausing_simulations <- function(
       # If the year is less than or equal to the length of the landscape list,
       # then use the correct landscape in sequence.
       # Else use the last landscape.
-      if (year+1 <= length(dynamic_hab_quality_landscape_list)) {
-        next_landscape <- sprintf("%s.asc", dynamic_hab_quality_landscape_list[[year+1]])
+      if (year+1 <= length(dynamic_landscapes_list)) {
+        next_base_landscape <- sprintf("%s.asc", tools::file_path_sans_ext(basename(dynamic_landscapes_list[[year+1]])))
       } else {
-        next_landscape <- sprintf("%s.asc", dynamic_hab_quality_landscape_list[[length(dynamic_hab_quality_landscape_list)]])
+        next_base_landscape <- sprintf("%s.asc", tools::file_path_sans_ext(basename(dynamic_landscapes_list[[length(dynamic_landscapes_list)]])))
+      }
+      if (year+1 <= length(dynamic_cost_maps_list)) {
+        next_cost_map <- sprintf("%s.asc", tools::file_path_sans_ext(basename(dynamic_cost_maps_list[[year+1]])))
+      } else {
+        next_cost_map <- sprintf("%s.asc", tools::file_path_sans_ext(basename(dynamic_cost_maps_list[[length(dynamic_cost_maps_list)]])))
       }
       
       # Load the next phenips value
-      phenips <- phenips_list[year]
+      phenips <- phenips_list[[year]]
       if (is.na(phenips)) {
         stop(sprintf("No phenips value for year %s", year))
       }
@@ -434,13 +391,18 @@ run_pausing_simulations <- function(
       }
       # Apply phenips multiplier to the base Rmax
       sim_params@demog@Rmax <- phenips * base_rmax
+      OUTINTRANGE <- 3
+      if ((year == 1) |
+        (year %% OUTINTRANGE == 0)
+      ) {
+        sim_params@simul@OutIntRange <- 1
+      } else {
+        sim_params@simul@OutIntRange <- 0
+      }
       
       
       # RangeShiftR needs a backslash at end of path
       result <- RunRS(sim_params, sprintf("%s/", dirpath))
-      
-      # Sleep for a second (not sure if needed?)
-      Sys.sleep(1)
       
       pop_shp <- extract_pop_file_to_shp(
         sim_params,
@@ -458,7 +420,7 @@ run_pausing_simulations <- function(
       out_rasters <- c(out_rasters, pop_rst)
       
       # Create new inidividuals initialisation file to reinitialise rangeshiftR
-      # with same dsitribution of individuals as this year
+      # with same distribution of individuals as this year
       df_pop_table <- extract_pop_shp_to_table(pop_shp)
       
       new_init_inds_txt <- sprintf('rep%s_year%s_inds.txt', replicate, year)
@@ -488,17 +450,17 @@ run_pausing_simulations <- function(
         
         new_hab_qual_rst <- apply_pop_impact_on_hab_quality(
           quality_impact=total_impact_hab_quality,
-          landscape=next_landscape,
+          landscape=next_base_landscape,
           sim_params=sim_params,
           coord_ref_sys=crs(rst_lcm),
           geom_extent=terra::ext(rst_lcm),
           dirpath=dirpath
         )
         
-        if (year+1 <= length(dynamic_hab_quality_landscape_list)) {
-          next_landscape_name <- sprintf("rep%s_year%s_%s", replicate, year, dynamic_hab_quality_landscape_list[[year+1]])
+        if (year+1 <= length(dynamic_landscapes_list)) {
+          next_landscape_name <- sprintf("rep%s_year%s_%s", replicate, year,  tools::file_path_sans_ext(basename(dynamic_landscapes_list[[year+1]])))
         } else {
-          next_landscape_name <- sprintf("rep%s_year%s_%s", replicate, year, dynamic_hab_quality_landscape_list[[length(dynamic_hab_quality_landscape_list)]])
+          next_landscape_name <- sprintf("rep%s_year%s_%s", replicate, year,  tools::file_path_sans_ext(basename(dynamic_landscapes_list[[length(dynamic_landscapes_list)]])))
         }
         
         terra::writeRaster(new_hab_qual_rst, file.path(dirpath, "Output_maps", sprintf("%s.tif", next_landscape_name)))
@@ -512,15 +474,21 @@ run_pausing_simulations <- function(
           NAflag=-9999
         )
         
+      } else {
+        next_landscape <- next_base_landscape
       }
       
       sim_params@land@LandscapeFile <- next_landscape
+      sim_params@land@CostsFile <- next_cost_map
       
       for (out_file in c("Pop", "Range", "Parameters")) {
-        file.rename(
-          file.path(dirpath, "Outputs", sprintf("Batch0_Sim0_Land1_%s.txt", out_file)),
-          file.path(dirpath, "Outputs", "file-per-pause", sprintf("rep%s_year%s_Batch0_Sim0_Land1_%s.txt", replicate, year, out_file))
-        )
+        existing_file_path <- file.path(dirpath, "Outputs", sprintf("Batch0_Sim0_Land1_%s.txt", out_file))
+        if (file.exists(existing_file_path)) {
+          file.rename(
+            existing_file_path,
+            file.path(dirpath, "Outputs", "file-per-pause", sprintf("rep%s_year%s_Batch0_Sim0_Land1_%s.txt", replicate, year, out_file))
+          )
+        }
       }
       
       # If Population is zero, then break out of this simulation
@@ -535,429 +503,261 @@ run_pausing_simulations <- function(
     
   }
   
-  merge_output_pop_and_range(dirpath, replicates, years)
+  # Merge all the pop and range files available for these simulations
+  merge_output_files(dirpath, "Pop")
+  merge_output_files(dirpath, "Range")
   
-  
+  # Quick plot of abundance and occupancy for these simulations
   jpeg(file=sprintf("%s/Outputs/%s", dirpath, "abundance-and-occupancy.jpg"))
   par(mfrow=c(1,2))
   plotAbundance(sim_params, sprintf("%s/", dirpath))
   plotOccupancy(sim_params, sprintf("%s/", dirpath))
   dev.off()
   
-  jpeg(file=sprintf("%s/Outputs/%s", dirpath, "abundance-and-occupancy-SD.jpg"))
-  par(mfrow=c(1,2))
-  plotAbundance(sim_params, sprintf("%s/", dirpath), sd=T, replicates=F)
-  plotOccupancy(sim_params, sprintf("%s/", dirpath), sd=T, replicates=F)
-  dev.off()
-  
 }
 
 
-merge_output_pop_and_range <- function(
+merge_output_files <- function(
     dirpath,
-    replicates,
-    years
+    out_save_type
 ) {
   
+  # Get lists of all reps, years, batches, sims and land numbers
   list_sim_files <- list.files(
     path = file.path(dirpath, "Outputs", "file-per-pause"),
-    pattern = "rep\\d+_year\\d+_Batch\\d+_Sim\\d+_Land\\d+_Pop.txt"
+    pattern = sprintf("rep\\d+_year\\d+_Batch\\d+_Sim\\d+_Land\\d+_%s.txt", out_save_type)
   )
-  
-  output_file_regex <- "rep(\\d+)_year(\\d+)_Batch(\\d+)_Sim(\\d+)_Land(\\d+)_Pop.txt"
-  land_list <- unique(as.numeric(gsub(output_file_regex, "\\5", list_sim_files)))
-  sim_list <- unique(as.numeric(gsub(output_file_regex, "\\4", list_sim_files)))
-  batch_list <- unique(as.numeric(gsub(output_file_regex, "\\3", list_sim_files)))
+  output_file_regex <- sprintf("rep(\\d+)_year(\\d+)_Batch(\\d+)_Sim(\\d+)_Land(\\d+)_%s.txt", out_save_type)
   rep_list <- unique(as.numeric(gsub(output_file_regex, "\\1", list_sim_files)))
+  rep_list= rep_list[order(rep_list)]
+  year_list <- unique(as.numeric(gsub(output_file_regex, "\\2", list_sim_files)))
+  year_list = year_list[order(year_list)]
+  batch_list <- unique(as.numeric(gsub(output_file_regex, "\\3", list_sim_files)))
+  batch_list = batch_list[order(batch_list)]
+  sim_list <- unique(as.numeric(gsub(output_file_regex, "\\4", list_sim_files)))
+  sim_list = sim_list[order(sim_list)]
+  land_list <- unique(as.numeric(gsub(output_file_regex, "\\5", list_sim_files)))
+  land_list = land_list[order(land_list)]
   
   for (land_n in land_list) {
     for (sim_n in sim_list) {
       for (batch_n in batch_list) {
         
-        pop_list <- list()
-        range_list <- list()
+        data_list <- list()
         i <- 1
         
+        # For each replicate (i.e. single simulation, single land, single batch)
+        # get list of all output files with suffix `out_save_type` (Pop or Range)
         for (rep_n in rep_list) {
           
           current_file_list <- list_sim_files[grepl(
-            sprintf("rep%s_year(\\d+)_Batch%s_Sim%s_Land%s_Pop.txt", rep_n, batch_n, sim_n, land_n),
+            sprintf("rep%s_year(\\d+)_Batch%s_Sim%s_Land%s_%s.txt", rep_n, batch_n, sim_n, land_n, out_save_type),
             list_sim_files
           )]
-          current_file_list <- current_file_list[order(current_file_list)]
           
-          max_year <- max(as.numeric(gsub(
-            sprintf("rep%s_year(\\d+)_Batch%s_Sim%s_Land%s_Pop.txt", rep_n, batch_n, sim_n, land_n),
-            "\\1",
-            current_file_list
-          )))
-          
-          for (year in 1:max_year) {
+          for (year in year_list) {
             
-            pop_txt_path <- file.path(
+            data_txt_path <- file.path(
               dirpath,
               "Outputs",
               "file-per-pause",
-              sprintf("rep%s_year%s_Batch%s_Sim%s_Land%s_Pop.txt", rep_n, year, batch_n, sim_n, land_n)
-            )
-            range_txt_path <- file.path(
-              dirpath,
-              "Outputs",
-              "file-per-pause",
-              sprintf("rep%s_year%s_Batch%s_Sim%s_Land%s_Range.txt", rep_n, year, batch_n, sim_n, land_n)
+              sprintf("rep%s_year%s_Batch%s_Sim%s_Land%s_%s.txt", rep_n, year, batch_n, sim_n, land_n, out_save_type)
             )
             
-            df_pop <- read.table(pop_txt_path, sep="\t", header=T)
-            if (year < max_year) {
-              df_pop <- subset(df_pop, Year == 0)
+            # If an output file exists for this year, load it, keep year 0 data
+            # (as this is the first year of change), and renumber the year
+            # to match the pausing count of years from the file name
+            if (file.exists(data_txt_path)) {
+              df_data <- read.table(data_txt_path, sep="\t", header=T)
+              if (year < max(year_list)) {
+                df_data <- subset(df_data, Year == 0)
+              }
+              if (nrow(df_data) > 0) {
+                df_data$Year <- df_data$Year + (year - 1)
+                df_data$Rep <- rep_n
+              }
+              data_list[[i]] <- df_data
+              
+              i <- i + 1
             }
-            if (nrow(df_pop) > 0) {
-              df_pop$Year <- df_pop$Year + (year - 1)
-              df_pop$Rep <- rep_n
-            }
-            pop_list[[i]] <- df_pop
-            
-            df_range <- read.table(range_txt_path, sep="\t", header=T)
-            if (year < max_year) {
-              df_range <- subset(df_range, Year == 0)
-            }
-            if (nrow(df_range) > 0) {
-              df_range$Year <-  df_range$Year + (year - 1)
-              df_range$Rep <- rep_n
-            }
-            range_list[[i]] <- df_range
-            
-            i <- i + 1
-            
           }
         }
         
-        df_pop = do.call(rbind, pop_list)
-        df_range = do.call(rbind, range_list)
-        write.table(
-          df_pop,
-          file.path(dirpath, "Outputs", sprintf("Batch%s_Sim%s_Land%s_Pop.txt", batch_n, sim_n, land_n)),
-          row.names = F,
-          quote = F,
-          sep = '\t'
-        )
-        write.table(
-          df_range,
-          file.path(dirpath, "Outputs", sprintf("Batch%s_Sim%s_Land%s_Range.txt", batch_n, sim_n, land_n)),
-          row.names = F,
-          quote = F,
-          sep = '\t'
-        )
-
-
-
-          
-        
+        if (length(data_list) > 0) {
+          df_data = do.call(rbind, data_list)
+          write.table(
+            df_data,
+            file.path(dirpath, "Outputs", sprintf("Batch%s_Sim%s_Land%s_%s.txt", batch_n, sim_n, land_n, out_save_type)),
+            row.names = F,
+            quote = F,
+            sep = '\t'
+          )
+        }
       }
     }
   }
+  
 }
 
 
+load_param <- function(param_name, batch_row, base_config) {
+  # Load the param, trying first to load it from the batch.
+  # If it is not specified in the batch (NULL) then load it
+  # from the base config.
+  #param <- batch_row[param_name] %||% base_config[param_name]
+  param <- tryCatch(batch_row[param_name], error = function(e) return(base_config[param_name]))
+  if (is.null(param)) {
+    stop(sprintf("Error: value for `%s` not provided in config or batch file", param_name))
+  }
+  return(param)
+}
 
 
+prepare_sim_dirs <- function(dirpath, dynamic_landscapes, dynamic_cost_maps, params) {
+  
+  dir.create(dirpath, showWarnings = TRUE)
+  dir.create(file.path(dirpath, "Inputs"), showWarnings = TRUE)
+  dir.create(file.path(dirpath, "Outputs"), showWarnings = TRUE)
+  dir.create(file.path(dirpath, "Outputs", "file-per-pause"),
+             showWarnings = TRUE)
+  dir.create(file.path(dirpath, "Output_Maps"), showWarnings = TRUE)
+  
+  for (landscape_path in unique(dynamic_landscapes)) {
+    file.copy(file.path(landscape_path),
+              file.path(dirpath, "Inputs"))
+    file.copy(sprintf("%s.tif", tools::file_path_sans_ext(landscape_path)),
+              file.path(dirpath, "Inputs"))
+  }
+  for (cost_map_path in unique(dynamic_cost_maps)) {
+    file.copy(file.path(cost_map_path),
+              file.path(dirpath, "Inputs"))
+    file.copy(sprintf("%s.tif", tools::file_path_sans_ext(cost_map_path)),
+              file.path(dirpath, "Inputs"))
+  }
+  
+  file.copy(file.path(params$init_inds_file),
+            file.path(dirpath, "Inputs"))
+}
 
 
-
-# function that brings together all functions to enable batch 
-# the function needs updated to deal with dynmaic landscapes properly (readinging in changing names)
-Run_sims <- function(Inds_file_name,
-           habitat_rst_name,
-           cost_map_name,
-           phenips,
-           Batch_num,
-           reps,
-           dens_inflection,
-           dens_slope,
-           DP,
-           PR,
-           MemSize,
-           GoalType,
-           GoalBias,
-           AlphaDB,
-           BetaDB) {
-    
-    input_data_path <- "../data/processed/"
-    output_path <- "../outputs"
-    
+run_sims <- function(
+  x,
+  base_config,
+  input_data_path,
+  output_path
+) {
+  
+  params <- modifyList(base_config, x)
+  
+  dirpath <- file.path(output_path, params$batch_name)
+  
+  if (!file.exists(dirpath)) {
     
     aggregation_factor <- 1
     pixel_size <- 25 * aggregation_factor
     rangeshiftr_steps <- 1
     
-    df_phenips <- phenips <- read.csv(phenips, fileEncoding = "latin1")
- 
-    df_phenips$Generations <- as.numeric(df_phenips$Generations)
-    phenips <- list(df_phenips$Generations)
-   # phenips <- list(rep(3, 50))
+    df_phenips <- read.csv(params$phenips_file)
+    phenips <- df_phenips$Generations
     
+    df_landscapes <- read.csv(params$dynamic_landscapes)
+    dynamic_landscapes <- df_landscapes$landscape
+    dynamic_cost_maps <- df_landscapes$cost_map
     
-    # Create arrays here of the parameters to be used, and a dataframe (df_params)
-    # is created with a full factorial design.
-    # Note the parameters currently listed are the only ones that have been
-    # configured for control in this batch mode. Any additional parameters will
-    # need to be set up.
-    rmax_list <- c(0.5, 1.2, 5, 10)  # c(5, 10, 20)
-    D0_list <- c(0.7)
-    alpha_list <- c(10)
-    beta_list <- c(0.5)
-    short_range_dist_list <- c(500)
-    long_range_dist_list <- c(5000)
-    short_dist_prob_list <- c(0.995) # c(0.995, 0.99, 0.95)
-    carrying_capacity_list <-
-      c(1000, 2000, 50000, 200000) # c(100, 200, 300, 400, 1000, 5000)
-    replicates_list <- c(10)
-    years_list <- c(50)
-    # Additional parameters for interaction with the landscape
-    years_for_destruction_list <- c(5) # c(2, 5, 10, 20)
-    apply_destruction_annually_list <- c(TRUE) # c(FALSE, TRUE)
-    phenips_list <-
-      c(phenips) # CANNOT USE MULTIPLE VERSIONS OF PHENIPS PER SIM BATCH
+    prepare_sim_dirs(dirpath, dynamic_landscapes, dynamic_cost_maps, params)
+      
+    land <- ImportedLandscape(
+      LandscapeFile = basename(dynamic_landscapes[1]),
+      CostsFile = basename(dynamic_cost_maps[1]),
+      Resolution = pixel_size,
+      HabPercent = TRUE,
+      K_or_DensDep = params$carrying_capacity
+    )
     
-    # Define the landscape and years
-    dynamic_hab_quality_both_landscapes <- rep(habitat_rst_name, 50) # this will need updated with changing names
-    dynamic_hab_quality_both_years <- 1:50
+    demo <- Demography(
+      ReproductionType = 1,  # sexual
+      Rmax = params$rmax,
+      bc = 2
+    )
     
-    dynamic_cost_both_landscapes <- rep(cost_map_name, 50)  # this will need updated with changing names
-    dynamic_cost_both_years <- 1:50
-    
-    # Create the list
-    ## CREATE LIST OF LANDSCAPES TO USE FOR EACH YEAR
-    dynamic_hab_quality_both_landscape_list <- list()
-    i <- 1
-    for (idx in 1:length(dynamic_hab_quality_both_landscapes)) {
-      cat(sprintf("idx: %s, ", idx))
-      if (length(dynamic_hab_quality_both_landscapes) < idx + 1) {
-        max_idx <- length(dynamic_hab_quality_both_landscapes)
-      } else {
-        max_idx <- idx + 1
-      }
-      for (year in dynamic_hab_quality_both_years[idx]:(dynamic_hab_quality_both_years[max_idx] -
-                                                        1)) {
-        cat(sprintf("year: %s, ", year))
-        dynamic_hab_quality_both_landscape_list[[i]] <-
-          dynamic_hab_quality_both_landscapes[idx]
-        i <- i + 1
-      }
-    }
-    
-    ## CREATE LIST OF LANDSCAPES TO USE FOR EACH YEAR
-    dynamic_cost_both_landscapes_list <- list()
-    i <- 1
-    for (idx in 1:length(dynamic_cost_both_landscapes)) {
-      cat(sprintf("idx: %s, ", idx))
-      if (length(dynamic_cost_both_landscapes) < idx + 1) {
-        max_idx <- length(dynamic_cost_both_landscapes)
-      } else {
-        max_idx <- idx + 1
-      }
-      for (year in dynamic_cost_both_years[idx]:(dynamic_cost_both_years[max_idx] -
-                                                 1)) {
-        cat(sprintf("year: %s, ", year))
-        dynamic_cost_both_landscapes_list[[i]] <-
-          dynamic_cost_both_landscapes[idx]
-        i <- i + 1
-      }
-    }
-    
-    
-    # Create dataframe of all parameter combinations
-    df_params <- expand.grid(
-      rmax = rmax_list,
-      short_dist_p = short_dist_prob_list,
-      D0 = D0_list,
-      a = alpha_list,
-      b = beta_list,
-      short_range_d = short_range_dist_list,
-      long_range_d = long_range_dist_list,
-      carry_cap = carrying_capacity_list,
-      replicates = replicates_list,
-      years = years_list,
-      years_for_destruction = years_for_destruction_list,
-      apply_destruction_annually = apply_destruction_annually_list,
-      phenips = phenips_list
+    disp <- Dispersal(
+      Emigration = Emigration(
+        DensDep = TRUE,
+        EmigProb = matrix(c(params$D0, params$alpha, params$beta), nrow = 1)
+      ),
+      Transfer = SMS(
+        DP = params$directional_persistence,
+        PR = params$perceptual_range,
+        MemSize = params$mem_size,
+        GoalType = params$goal_type,
+        GoalBias = params$goal_bias,
+        AlphaDB = params$alpha_density_bias,
+        BetaDB = params$beta_density_bias,
+        Costs = "file",
+        StepMort = params$step_mortality
+      ),
+      Settlement = Settlement(
+        StageDep = FALSE,
+        SexDep = TRUE,
+        DensDep = TRUE,
+        FindMate = c(TRUE, FALSE),
+        # Female requires mate, male does not
+        Settle = matrix(
+          c(0, params$max_settlement_prob, params$density_inflection, params$density_slope,  # Female: αS = dens_inflection, βS = dens_slope
+            1, params$max_settlement_prob, params$density_inflection, params$density_slope),   # Male: same),
+          ncol = 4,
+          byrow = TRUE
+        ),
+        MinSteps = params$min_steps,
+        MaxSteps = params$max_steps,
+        MaxStepsYear = params$max_steps
+      )
     )
     
     
-    # Create a unique ID for each simulation, this is used as the directory
-    # name for the simulation
-    df_params["sim_uuid"] = sapply(1:nrow(df_params), UUIDgenerate)
-    sim_batch_path <- file.path(output_path, Batch_num)
-    dir.create(sim_batch_path)
-    write.xlsx(df_params,
-               file.path(sim_batch_path, "sim-parameters.xlsx"))
+    init <- Initialise(
+      InitType = 2, # Initialise from individuals list
+      InitIndsFile = basename(params$init_inds_file)
+    )
     
     
+    sim <- Simulation(
+      Simulation = 0,
+      Years = rangeshiftr_steps,
+      Replicates = 1, # one here because of pausing (controlled with pausingextras)
+      OutIntPop = 1, # one here because of pausing (controlled with pausingextras)
+      OutIntRange = 1 # one here because of pausing (controlled with pausingextras)
+    )
     
-    ##################
-    # Run simulations
-    ##################
+    sim_params <-
+      RSsim(
+        batchnum = 0,
+        land = land,
+        demog = demo,
+        dispersal = disp,
+        simul = sim,
+        init = init
+      )  # seed to allow replication
     
-    for (i in 1:nrow(df_params)) {
-      row <- df_params[i, ]
-      
-      rmax <- row$rmax
-      short_dist_prob <- row$short_dist_p #redundant
-      D0 <- row$D0 #redundant
-      alpha <- row$a #redundant
-      beta <- row$b
-      short_range_dist <- row$short_range_d #redundant
-      long_range_dist <- row$long_range_d #redundant
-      carrying_capacity <- row$carry_cap
-      sim_uuid <- row$sim_uuid
-      replicates <- row$replicates
-      years <- row$years
-      years_for_destruction <- row$years_for_destruction
-      apply_destruction_annually <- row$apply_destruction_annually
-      phenips <- row$phenips
-      
-      dirpath <- file.path(sim_batch_path, sim_uuid)
-      
-      
-      if (file.exists(dirpath)) {
-        next
-      }
-      
-      dir.create(dirpath, showWarnings = TRUE)
-      dir.create(file.path(dirpath, "Inputs"), showWarnings = TRUE)
-      dir.create(file.path(dirpath, "Outputs"), showWarnings = TRUE)
-      dir.create(file.path(dirpath, "Outputs", "file-per-pause"),
-                 showWarnings = TRUE)
-      dir.create(file.path(dirpath, "Output_Maps"), showWarnings = TRUE)
-      
-      for (habitat_rst_name in dynamic_hab_quality_both_landscapes) {
-        file.copy(file.path(input_data_path, sprintf("%s.asc", habitat_rst_name)),
-                  file.path(dirpath, "Inputs"))
-        file.copy(file.path(
-          input_data_path,
-          sprintf("%s.asc.aux.xml", habitat_rst_name)
-        ),
-        file.path(dirpath, "Inputs"))
-        file.copy(file.path(input_data_path, sprintf("%s.tif", habitat_rst_name)),
-                  file.path(dirpath, "Inputs"))
-      }
-      for (cost_map_name in dynamic_cost_both_landscapes) {
-        file.copy(file.path(input_data_path, sprintf("%s.asc", cost_map_name)),
-                  file.path(dirpath, "Inputs"))
-        file.copy(file.path(
-          input_data_path,
-          sprintf("%s.asc.aux.xml", cost_map_name)
-        ),
-        file.path(dirpath, "Inputs"))
-        file.copy(file.path(input_data_path, sprintf("%s.tif", cost_map_name)),
-                  file.path(dirpath, "Inputs"))
-      }
-      
-      file.copy(file.path(input_data_path, "summinds_sex.txt"),
-                file.path(dirpath, "Inputs"))
-      
-      
-      land <- ImportedLandscape(
-        LandscapeFile = dynamic_hab_quality_both_landscapes[1],
-        CostsFile = "cost_map.asc", # fix this bit of code too
-        # Raster of movement costs
-        Resolution = pixel_size,
-        HabPercent = TRUE,
-        # Landscape file represents habitat quality as percentage
-        K_or_DensDep = carrying_capacity
-      )
-      
-      demo <- Demography(ReproductionType = 1,  # sexual
-                         Rmax = rmax, bc = 2)
-      
-      disp <- Dispersal(
-        Emigration = Emigration(DensDep = TRUE,
-                                EmigProb = matrix(c(D0, alpha, beta), nrow = 1)),
-        
-        Transfer = SMS(
-          DP = DP,
-          # Dispersal propensity
-           PR = PR,
-            #Perceptual Range
-          MemSize = MemSize,
-          # Memory of past steps
-          GoalType = GoalType,
-          # Goal = suitable habitat
-          GoalBias = GoalBias,
-          # Strength of goal orientation
-          AlphaDB = AlphaDB,
-          # Density bias alpha
-          BetaDB = BetaDB,
-          # Density bias beta
-          Costs = "file",
-          # Raster of movement costs
-          StepMort = 0.1      # Mortality per step
-        ),
-        
-        Settlement = Settlement(
-          StageDep = FALSE,
-          SexDep = TRUE,
-          DensDep = TRUE,
-          FindMate = c(TRUE, FALSE),
-          # Female requires mate, male does not
-          Settle = matrix(
-            c(0, 0.4, dens_inflection, dens_slope,  # Female: αS = dens_inflection, βS = dens_slope
-              1, 0.4, dens_inflection, dens_slope),   # Male: same),
-              ncol = 4,
-              byrow = TRUE
-            ),
-            MinSteps = 1,
-            MaxSteps = 100,
-            MaxStepsYear = 100
-          )
-        )
-      
-      
-      init <- Initialise(InitType = 2, # Initialise from individuals list
-                         InitIndsFile = "summinds_sex.txt")
-      
-      
-      sim <- Simulation(
-        Simulation = 0,
-        Years = rangeshiftr_steps,
-        Replicates = 1,
-        OutIntPop = 1,
-        OutIntRange = 1
-      )
-      
-      sim_params <-
-        RSsim(
-          batchnum = 0,
-          land = land,
-          demog = demo,
-          dispersal = disp,
-          simul = sim,
-          init = init
-        )  # seed to allow replication
-      
-      # Set up the extra parameters used as part of RangeShiftR pausing
-      
-      
-      attributes(sim_params)$pausingextras <- PausingExtras(
-        replicates = replicates,
-        years = years,
-        pop_impacts_quality = T,
-        years_for_destruction = years_for_destruction,
-        apply_destruction_annually = apply_destruction_annually,
-        phenips = phenips,
-        dynamic_hab_quality_landscape_list = dynamic_hab_quality_both_landscape_list
-      )
-      
-      
-      validateRSparams(sim_params)
-      
-      
-      run_pausing_simulations(
-        sim_params = sim_params,
-        input_data_path = input_data_path,
-        dirpath = dirpath
-      )
-      
-      
-    }
+    # Set up the extra parameters used as part of RangeShiftR pausing
+    attributes(sim_params)$pausingextras <- PausingExtras(
+      replicates = params$replicates,
+      years = params$years,
+      pop_impacts_quality = params$pop_impacts_quality,
+      years_for_destruction = params$years_for_destruction,
+      apply_destruction_annually = params$apply_destruction_annually,
+      phenips = as.list(phenips),
+      dynamic_landscapes_list = as.list(dynamic_landscapes),
+      dynamic_cost_maps_list = as.list(dynamic_cost_maps)
+    )
+    
+    validateRSparams(sim_params)
+    
+    run_pausing_simulations(
+      sim_params = sim_params,
+      input_data_path = input_data_path,
+      dirpath = dirpath
+    )
   }
+  
+}

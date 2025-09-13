@@ -1,134 +1,101 @@
-library(uuid)
+library(parallel)
 library(RangeShiftR)
-library(readxl)
-library(openxlsx)
-library(terra)
+library(yaml)
 
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 source("ips-shift-functions.R")
 
-## create mock basic landscapes ####
 
-# # Create a 4x4 raster with 25m resolution
-# r <- rast(nrows=4, ncols=4, xmin=0, xmax=100, ymin=0, ymax=100, crs="EPSG:27700")
-# 
-# # Assign values: one cell with 100, others NA
-# values(r) <- rep(100, ncell(r))
-# #values(r)[1] <- 100
-# 
-# # Set NA flag
-# NAflag(r) <- -9999
-# 
-# # View raster summary
-# 
-# # Write to ASCII
-# writeRaster(r, "../data/processed/hab_map_qual.asc", filetype="AAIGrid", NAflag=-9999, overwrite=TRUE)
-# 
-# # Write to GeoTIFF
-# writeRaster(r, "../data/processed/hab_map_qual.tif", filetype="GTiff", NAflag=-9999, overwrite=TRUE)
-# 
-# 
-# 
+# Load the base config
+# This config allows you to specify default values, so that for the batch simulations
+# you only need to specify parameters that change from those defaults.
+base_config <- yaml.load_file("../config-SMS.yml")
+
+# Load the batches data, and convert to an array so
+# processing can be parallelised
+batches <- read.csv("../data/batches.csv")
+batches_array <- split(batches, seq(nrow(batches)))
+
+input_data_path <- "../data/processed"
+output_path <- "../outputs"
+
+# USED FOR DEBUGGING:
+# IF FALSE, ALL BATCHES WILL BE RUN USING A CLUSTER;
+# IF TRUE, ONLY 1 SIMULATION FROM THE BATCH WILL BE RUN IN THE CURRENT R SESSION.
+DEBUG <- FALSE
 
 
-plot(r_cost)
+if (DEBUG) {
 
+  # Run only the first simulation for debugging
+  run_sims(
+    batches_array$`1`,
+    base_config,
+    input_data_path,
+    output_path
+  )
 
-# cosr rater with uniform cost from hab_qual map - need to improve this
+} else {
 
-r_cost <- rast("../data/processed/hab_map_qual_fixed_projection.asc")
-
-#hab_map_qual_fixed_projection
-r_cost <- rast(nrows=4, ncols=4, xmin=0, xmax=100, ymin=0, ymax=100, crs="EPSG:27700")
-
-# Assign values: one cell with 100, others NA
-values(r_cost) <- rep(1, ncell(r_cost))
-#values(r)[1] <- 100
-
-# Set NA flag
-NAflag(r_cost) <- -9999
-
-# View raster summary
-r_cost
-plot(r_cost)
-# Write to ASCII
-writeRaster(r_cost, "../data/processed/cost_map.asc", filetype="AAIGrid", NAflag=-9999, overwrite=TRUE)
-
-# Write to GeoTIFF
-writeRaster(r_cost, "../data/processed/cost_map.tif", filetype="GTiff", NAflag=-9999, overwrite=TRUE)
-
-
-############# set up batch processing ####
+  # Set the number of nodes as half of available cores.
+  n_nodes <- as.integer(detectCores()/2)
   
-
-  
-  library(parallel)
-  
-  cl <- parallel::makeCluster(detectCores())
-  
-  batches <- read.csv("../code/batches.csv")
-  
-  phenips = batches$Phenips
-  Batch_num = batches$Batch.name
-  Inds_file_name =  batches$Inds_file_name
-  habitat_rst_name = batches$habitat_rst_name
-  cost_map_name = batches$cost_map_name
-  reps = batches$reps
-  dens_inflection = batches$dens_inflection
-  dens_slope = batches$dens_slope
-  DP = batches$DP
-  PR = batches$PR
-  MemSize= batches$MemSize
-  GoalType= batches$GoalType
-  GoalBias= batches$GoalBias
-  AlphaDB= batches$AlphaDB
-  BetaDB= batches$BetaDB
-  
-
+  cl <- parallel::makeCluster(n_nodes)
   
   envir <- environment()
   parallel::clusterExport(cl, varlist = ls(envir), envir = envir)
-
   
-  
-  ### * Start parallel processing run ----
-  
-
-  # Load required packages on all cluster nodes
   clusterEvalQ(cl, {
-    library(terra)
     library(sf)
-    library(uuid)
+    library(terra)
     library(RangeShiftR)
-    library(readxl)
-    library(openxlsx)
   })
   
-  
-  time <- system.time(clusterMap(cl,
-                                 Run_sims,
-                                 Inds_file_name,
-                                 habitat_rst_name,
-                                 cost_map_name,
-                                 phenips,
-                                 Batch_num,
-                                 reps,
-                                 dens_inflection,
-                                 dens_slope,
-                                 DP,
-                                 PR,
-                                 MemSize,
-                                 GoalType,
-                                 GoalBias,
-                                 AlphaDB,
-                                 BetaDB))
-  
-  
+  time <- system.time(clusterMap(
+    cl,
+    fun=run_sims,
+    x=batches_array,
+    MoreArgs=list(
+      base_config=base_config,
+      input_data_path=input_data_path,
+      output_path=output_path
+    )
+  ))
+    
   parallel::stopCluster(cl)
-  
-  
-  
-  
-  
 
+}
+
+
+
+
+
+##############################
+##############################
+# create mock basic landscapes
+if (FALSE) {
   
+  for (qual in c(100, 80, 60, 40, 20)) {
+    # Create a 4x4 raster with 25m resolution
+    r <- rast(nrows=4, ncols=4, xmin=0, xmax=100, ymin=0, ymax=100, crs="EPSG:27700")
+    
+    # Assign values: one cell with qual, others NA
+    values(r) <- rep(qual, ncell(r))
+    NAflag(r) <- -9999
+    
+    writeRaster(r, sprintf("../data/processed/hab_map_qual_%s.asc", qual), filetype="AAIGrid", NAflag=-9999, overwrite=TRUE)
+    writeRaster(r, sprintf("../data/processed/hab_map_qual_%s.tif", qual), filetype="GTiff", NAflag=-9999, overwrite=TRUE)
+  }
+  
+  for (cost in c(1, 2, 3, 4, 5)) {
+    # Create a 4x4 raster with 25m resolution
+    r <- rast(nrows=4, ncols=4, xmin=0, xmax=100, ymin=0, ymax=100, crs="EPSG:27700")
+    
+    # Assign values: one cell with qual, others NA
+    values(r) <- rep(cost, ncell(r))
+    NAflag(r) <- -9999
+    
+    writeRaster(r, sprintf("../data/processed/cost_map_%s.asc", cost), filetype="AAIGrid", NAflag=-9999, overwrite=TRUE)
+    writeRaster(r, sprintf("../data/processed/cost_map_%s.tif", cost), filetype="GTiff", NAflag=-9999, overwrite=TRUE)
+  }
+}

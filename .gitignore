@@ -3,4 +3,6 @@
 .RData
 .Ruserdata
 data/
+data/*
+!data/Batches.csv
 outputs/
