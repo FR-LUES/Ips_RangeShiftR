@@ -511,6 +511,103 @@ species_init_map(Output_path = "C:/Users/fiona.plenderleith/OneDrive - Forest Re
                  NumberCells = 1, 
                  rep = 1)
 
+species_init_map(Output_path = "C:/Users/fiona.plenderleith/OneDrive - Forest Research/Documents/IpsShift/Ips_dynamic/data/forestsGales/", 
+                 years = 2035, 
+                 NumberCells = 1, 
+                 rep = 1)
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+species_init_map_clumped <- function(Output_path, NumberCells, rep, pop_size, clump_size) {
+ # first_year <- min(years)
+  filename <- paste0(Output_path, "quality_cropped.asc")
+  Map_rast <- rast(filename)
+  
+  # Identify suitable cells
+  suitable <- Map_rast == 100
+  
+  # Create a 5x5 window (1 ha at 25 m resolution)
+  window <- matrix(1, nrow = 5, ncol = 5)
+  cluster_score <- focal(suitable, w = window, fun = sum, na.policy = "omit", fillvalue = 0)
+  
+  # Mask to retain only cells with ≥16 suitable neighbours
+  clumped <- mask(suitable, cluster_score >= clump_size, maskvalues = FALSE)
+  
+  # Get cell indices
+  clumped_cells <- which(values(clumped) == 1)
+  
+  if (length(clumped_cells) < NumberCells) {
+    stop("Not enough clumped suitable cells to sample from.")
+  }
+  
+  # Sample from clumped cells
+  set.seed(42)
+  selected_indices <- sample(clumped_cells, NumberCells)
+  
+  # Mark selected cells
+  high_value_cells <- Map_rast
+  high_value_cells[] <- NA
+  high_value_cells[selected_indices] <- 1000
+  
+  spruce_raster_init <- Map_rast
+  spruce_raster_init[values(high_value_cells) == 1000] <- 1
+  spruce_raster_init[spruce_raster_init[] != 1] <- NA
+  
+  names(spruce_raster_init) <- "pop"
+  writeRaster(spruce_raster_init, file.path(Output_path, "initial_dist.tif"), overwrite = TRUE, datatype = "INT2S")
+  
+  # Create individuals file
+  pop_size <- pop_size
+  spruce_raster_init_pnt <- as.points(spruce_raster_init, values = TRUE, na.rm = TRUE)
+  
+  create_inds_dataframe <- function(shp_species, rst_species) {
+    df_inds <- terra::extract(rst_species, shp_species, cells = TRUE, df = TRUE)
+    df_inds$Year <- 0
+    df_inds$Species <- 0
+    df_inds$X <- df_inds$cell %% ncol(rst_species) - 1
+    df_inds$Y <- nrow(rst_species) - (floor(df_inds$cell / ncol(rst_species))) - 1
+    df_inds$Ninds <- df_inds$pop
+    df_inds <- df_inds[, !(names(df_inds) %in% c('ID', 'cells', 'pop'))]
+    df_inds <- df_inds[!is.na(df_inds$Ninds), ]
+    df_inds <- unique(df_inds)
+    df_inds <- df_inds[df_inds$Ninds != 0, ]
+    return(df_inds)
+  }
+  
+  df_females <- create_inds_dataframe(spruce_raster_init_pnt, spruce_raster_init)
+  df_females$Ninds <- df_females$Ninds * pop_size / 2
+  df_females$Sex <- 1
+  
+  df_males <- create_inds_dataframe(spruce_raster_init_pnt, spruce_raster_init)
+  df_males$Ninds <- df_males$Ninds * pop_size / 2
+  df_males$Sex <- 0
+  
+  df_individuals <- rbind(df_females, df_males)
+  file <- paste(NumberCells, rep, "inds.txt", sep = "_")
+  write.table(df_individuals, file.path(Output_path, file), row.names = FALSE, quote = FALSE, sep = '\t')
+  
+  return(df_individuals)
+}
+
+# --- Run the function ---
+species_init_map_clumped(
+  Output_path = "Z:/Common/Fiona Plenderleith/IpsShift2/Ips_RangeShiftR/data/processed/",
+  NumberCells = 1,
+  rep = 1,
+  pop_size = 2,
+ # years = 2035,
+  clump_size = 16
+)
 
 

@@ -145,8 +145,7 @@ extract_pop_raster_to_shp <- function(
 }
 
 
-
-
+# 
 extract_pop_file_to_shp <- function(
     sim_params,
     coord_ref_sys,
@@ -170,13 +169,14 @@ extract_pop_file_to_shp <- function(
 
 
 
+
 calculate_pop_impact_on_hab_quality <- function(
     pop_rst,
     years_for_destruction,
     apply_destruction_annually,
     sim_params
 ) {
-  
+
   # Calculate carrying capacity per pixel
   # Rangeshifter stores it as per hectare
   carry_cap_per_pixel <- sim_params@land@K_or_DensDep * (sim_params@land@Resolution^2 / 10000)
@@ -211,6 +211,11 @@ apply_pop_impact_on_hab_quality <- function(
   hab_qual_rst <- round(initial_hab_qual_rst - quality_impact)
   hab_qual_rst[hab_qual_rst < 0] <- 0
   
+  # hab_qual_rst[is.na(hab_qual_rst)] <- 0 #test
+  # 
+  # # Force integer type
+  # hab_qual_rst <- terra::as.int(hab_qual_rst) #test
+  # 
   return(hab_qual_rst)
   
 }
@@ -410,7 +415,7 @@ run_pausing_simulations <- function(
         terra::ext(rst_lcm),
         dirpath
       )
-      st_write(pop_shp, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_pop.geojson", replicate,  year)))
+       st_write(pop_shp, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_pop.geojson", replicate,  year)))
       
       pop_rst <- extract_pop_shp_to_rst(
         pop_shp,
@@ -466,6 +471,7 @@ run_pausing_simulations <- function(
         terra::writeRaster(new_hab_qual_rst, file.path(dirpath, "Output_maps", sprintf("%s.tif", next_landscape_name)))
         
         next_landscape <- sprintf("%s.asc", next_landscape_name)
+       #new_hab_qual_rst <- terra::as.int(new_hab_qual_rst)
         
         terra::writeRaster(
           new_hab_qual_rst,
