@@ -1,12 +1,11 @@
 # Ips
 apply_destruction_annually: TRUE
-dynamic_landscapes: ../data/processed/dynamic_landscapes_1.csv
-input_data_path: ../data/processed
+dynamic_landscapes: ../data/dynamic_landscapes_1.csv
 keep_files_per_pause: FALSE
 keep_input_files: FALSE
 output_path: ../outputs
 out_int_range: 5
-phenips_file: ../data/processed/phenips1.csv
+phenips_file: ../data/phenips1.csv
 pop_impacts_quality: TRUE
 replicates: 5
 years: 20
