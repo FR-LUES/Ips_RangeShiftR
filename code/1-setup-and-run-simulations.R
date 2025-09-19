@@ -5,34 +5,41 @@ library(yaml)
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 source("ips-shift-functions.R")
 
+#############
+# PARAMETERS
+#############
 
-# Load the base config
-# This config allows you to specify default values, so that for the batch simulations
+# The base config allows you to specify default values, so that for the batch simulations
 # you only need to specify parameters that change from those defaults.
-base_config <- yaml.load_file("../config-SMS.yml")
+BASE_CONFIG_PATH <- "../config-SMS.yml"
 
-# Load the batches data, and convert to an array so
-# processing can be parallelised
-batches <- read.csv("../data/batches.csv")
-batches_array <- split(batches, seq(nrow(batches)))
-
-output_path <- "../outputs"
+# The batch file where parameter changes can be specified
+BATCHES_FILE_PATH <- "../data/batches.csv"
 
 # USED FOR DEBUGGING:
 # IF FALSE, ALL BATCHES WILL BE RUN USING A CLUSTER;
 # IF TRUE, ONLY 1 SIMULATION FROM THE BATCH WILL BE RUN IN THE CURRENT R SESSION.
 DEBUG <- FALSE
 
+#############
+#############
+
+
+
+
+base_config <- yaml.load_file(BASE_CONFIG_PATH)
+
+# Load the batches, and convert to an array so processing can be parallelised
+batches <- read.csv(BATCHES_FILE_PATH)
+batches_array <- split(batches, seq(nrow(batches)))
+
 
 if (DEBUG) {
-
   # Run only the first simulation for debugging
   run_sims(
     batches_array$`1`,
-    base_config,
-    output_path
+    base_config
   )
-
 } else {
 
   # Set the number of nodes as half of available cores.
@@ -54,8 +61,7 @@ if (DEBUG) {
     fun=run_sims,
     x=batches_array,
     MoreArgs=list(
-      base_config=base_config,
-      output_path=output_path
+      base_config=base_config
     )
   ))
     
@@ -68,8 +74,8 @@ if (DEBUG) {
 
 
 ##############################
-##############################
 # create mock basic landscapes
+##############################
 if (FALSE) {
   
   for (qual in c(100, 80, 60, 40, 20)) {
@@ -96,3 +102,5 @@ if (FALSE) {
     writeRaster(r, sprintf("../data/processed/cost_map_%s.tif", cost), filetype="GTiff", NAflag=-9999, overwrite=TRUE)
   }
 }
+##############################
+##############################
