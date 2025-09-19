@@ -40,15 +40,11 @@ calculate_pop_impact_on_hab_quality <- function(
   # Rangeshifter stores it as per hectare
   carry_cap_per_pixel <- sim_params@land@K_or_DensDep * (sim_params@land@Resolution^2 / 10000)
   
-  if (apply_destruction_annually) {
-    quality_impact <- ((pop_rst / carry_cap_per_pixel) * 100) / years_for_destruction
-  } else {
-    quality_impact <- ((pop_rst / carry_cap_per_pixel) * 100)
-  }
+  divisor <- ifelse(apply_destruction_annually, years_for_destruction, 1)
   
-  quality_impact <- round(quality_impact)
+  quality_impact <- (pop_rst / carry_cap_per_pixel * 100) / divisor
   
-  return(quality_impact)
+  return(round(quality_impact))
   
 }
 
