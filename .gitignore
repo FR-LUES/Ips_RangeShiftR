@@ -4,4 +4,6 @@
 .Ruserdata
 data/*
 !data/Batches.csv
+!data/dynamic_landscapes_1.csv
+!data/phenips1.csv
 outputs/
