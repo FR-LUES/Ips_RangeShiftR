@@ -156,7 +156,10 @@ PausingExtras <- function(
     apply_destruction_annually,
     phenips,
     dynamic_landscapes_list,
-    dynamic_cost_maps_list
+    dynamic_cost_maps_list,
+    out_int_range,
+    keep_files_per_pause,
+    keep_input_files
 ) {
   
   setClass(
@@ -169,7 +172,10 @@ PausingExtras <- function(
       apply_destruction_annually="logical",
       phenips="list",
       dynamic_landscapes_list="list",
-      dynamic_cost_maps_list="list"
+      dynamic_cost_maps_list="list",
+      out_int_range="numeric",
+      keep_files_per_pause="logical",
+      keep_input_files="logical"
     )
   )
   
@@ -182,7 +188,10 @@ PausingExtras <- function(
     apply_destruction_annually=apply_destruction_annually,
     phenips=phenips,
     dynamic_landscapes_list=dynamic_landscapes_list,
-    dynamic_cost_maps_list=dynamic_cost_maps_list
+    dynamic_cost_maps_list=dynamic_cost_maps_list,
+    out_int_range=out_int_range,
+    keep_files_per_pause=keep_files_per_pause,
+    keep_input_files=keep_input_files
   )
   
   return(pausingextras)
@@ -206,6 +215,7 @@ run_pausing_simulations <- function(
   base_rmax <- sim_params@demog@Rmax
   dynamic_landscapes_list <- sim_params@pausingextras@dynamic_landscapes_list
   dynamic_cost_maps_list <- sim_params@pausingextras@dynamic_cost_maps_list
+  out_int_range <- sim_params@pausingextras@out_int_range
   
   rst_lcm <- terra::rast(file.path(
     dirpath,
@@ -255,15 +265,13 @@ run_pausing_simulations <- function(
       }
       # Apply phenips multiplier to the base Rmax
       sim_params@demog@Rmax <- phenips * base_rmax
-      OUTINTRANGE <- 3
-      if ((year == 1) |
-        (year %% OUTINTRANGE == 0)
-      ) {
+      
+      # Only save a range file at the interval specified with out_int_range
+      if ((out_int_range > 0) & ((year == 1) | (year %% out_int_range == 0))) {
         sim_params@simul@OutIntRange <- 1
       } else {
         sim_params@simul@OutIntRange <- 0
       }
-      
       
       # RangeShiftR needs a backslash at end of path
       result <- RunRS(sim_params, sprintf("%s/", dirpath))
@@ -371,6 +379,13 @@ run_pausing_simulations <- function(
   # Merge all the pop and range files available for these simulations
   merge_output_files(dirpath, "Pop")
   merge_output_files(dirpath, "Range")
+  
+  if (!sim_params@pausingextras@keep_files_per_pause) {
+    unlink(sprintf("%s/Outputs/file-per-pause", dirpath), recursive=TRUE)
+  }
+  if (!sim_params@pausingextras@keep_input_files) {
+    unlink(sprintf("%s/Inputs", dirpath), recursive=TRUE)
+  }
   
   # Quick plot of abundance and occupancy for these simulations
   jpeg(file=sprintf("%s/Outputs/%s", dirpath, "abundance-and-occupancy.jpg"))
@@ -613,7 +628,10 @@ run_sims <- function(
       apply_destruction_annually = params$apply_destruction_annually,
       phenips = as.list(phenips),
       dynamic_landscapes_list = as.list(dynamic_landscapes),
-      dynamic_cost_maps_list = as.list(dynamic_cost_maps)
+      dynamic_cost_maps_list = as.list(dynamic_cost_maps),
+      out_int_range = params$out_int_range,
+      keep_files_per_pause = params$keep_files_per_pause,
+      keep_input_files = params$keep_input_files
     )
     
     validateRSparams(sim_params)
