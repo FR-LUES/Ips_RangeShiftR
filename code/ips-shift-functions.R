@@ -7,7 +7,6 @@ setwd(getSrcDirectory(function(){})[1])
 options(scipen = 999)
 
 
-create_habitat_and_initial_dist <- function(
     species_shp_path,
     lcm_rst_path,
     nfi_rst_path,
@@ -145,7 +144,6 @@ extract_pop_raster_to_shp <- function(
 }
 
 
-# 
 extract_pop_file_to_shp <- function(
     sim_params,
     coord_ref_sys,
@@ -165,7 +163,6 @@ extract_pop_file_to_shp <- function(
   return(df_pop)
   
 }
-
 
 
 
