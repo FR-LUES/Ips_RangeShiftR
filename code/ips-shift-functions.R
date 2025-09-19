@@ -202,7 +202,6 @@ PausingExtras <- function(
 
 run_pausing_simulations <- function(
     sim_params,
-    input_data_path,
     dirpath
 ) {
   
@@ -523,7 +522,6 @@ prepare_sim_dirs <- function(dirpath, dynamic_landscapes, dynamic_cost_maps, par
 run_sims <- function(
   x,
   base_config,
-  input_data_path,
   output_path
 ) {
   
@@ -638,7 +636,6 @@ run_sims <- function(
     
     run_pausing_simulations(
       sim_params = sim_params,
-      input_data_path = input_data_path,
       dirpath = dirpath
     )
   }

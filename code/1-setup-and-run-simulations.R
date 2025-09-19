@@ -16,7 +16,6 @@ base_config <- yaml.load_file("../config-SMS.yml")
 batches <- read.csv("../data/batches.csv")
 batches_array <- split(batches, seq(nrow(batches)))
 
-input_data_path <- "../data/processed"
 output_path <- "../outputs"
 
 # USED FOR DEBUGGING:
@@ -31,7 +30,6 @@ if (DEBUG) {
   run_sims(
     batches_array$`1`,
     base_config,
-    input_data_path,
     output_path
   )
 
@@ -57,7 +55,6 @@ if (DEBUG) {
     x=batches_array,
     MoreArgs=list(
       base_config=base_config,
-      input_data_path=input_data_path,
       output_path=output_path
     )
   ))
