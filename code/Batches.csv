@@ -1,6 +1,0 @@
-﻿Batch name,reps,habitat_rst_name,cost_map_name,Inds_file_name,Phenips,DP,PR,MemSize,GoalType,GoalBias,AlphaDB,BetaDB,dens_inflection,dens_slope
-Batch1,1000,quality_cropped,cost_map,1_1_inds.txt,Z:/Common/Fiona Plenderleith/IpsShift2/Rmax_model/data/processed/phenips1.csv,20,10,2,0,2.5,0.4,10,10,0.01
-Batch2,1000,quality_cropped,cost_map,1_1_inds.txt,Z:/Common/Fiona Plenderleith/IpsShift2/Rmax_model/data/processed/phenips1.csv,20,10,2,0,2.5,0.4,10,20,0.01
-Batch3,1000,quality_cropped,cost_map,1_1_inds.txt,Z:/Common/Fiona Plenderleith/IpsShift2/Rmax_model/data/processed/phenips1.csv,20,10,2,0,2.5,0.4,10,10,0.5
-Batch4,1000,quality_cropped,cost_map,1_1_inds.txt,Z:/Common/Fiona Plenderleith/IpsShift2/Rmax_model/data/processed/phenips1.csv,20,10,2,0,2.5,0.4,10,20,0.5
-Batch5,1000,quality_cropped,cost_map,1_1_inds.txt,Z:/Common/Fiona Plenderleith/IpsShift2/Rmax_model/data/processed/phenips1.csv,20,5,2,0,2,0.4,10,20,0.7
