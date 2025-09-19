@@ -521,13 +521,16 @@ prepare_sim_dirs <- function(dirpath, dynamic_landscapes, dynamic_cost_maps, par
 
 run_sims <- function(
   x,
-  base_config,
-  output_path
+  base_config
 ) {
   
   params <- modifyList(base_config, x)
   
-  dirpath <- file.path(output_path, params$batch_name)
+  ifelse(!dir.exists(file.path(params$output_path)),
+         dir.create(file.path(params$output_path)),
+         sprintf(" %s directory exists", params$output_path))
+  
+  dirpath <- file.path(params$output_path, params$batch_name)
   
   if (!file.exists(dirpath)) {
     
