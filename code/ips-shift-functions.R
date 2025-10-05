@@ -308,12 +308,12 @@ run_pausing_simulations <- function(
           sim_params=sim_params
         )
         
-        terra::writeRaster(new_quality_impact_rst, file.path(dirpath, "Output_maps", sprintf("rep%s_year%s_new_quality_impact.tif", replicate, year)))
+        terra::writeRaster(new_quality_impact_rst, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_new_quality_impact.tif", replicate, year)))
         
         total_impact_hab_quality <- total_impact_hab_quality + new_quality_impact_rst
         total_impact_hab_quality[total_impact_hab_quality>100] <- 100
         
-        terra::writeRaster(total_impact_hab_quality, file.path(dirpath, "Output_maps", sprintf("rep%s_year%s_total_quality_impact.tif", replicate, year)))
+        terra::writeRaster(total_impact_hab_quality, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_total_quality_impact.tif", replicate, year)))
         
         new_hab_qual_rst <- apply_pop_impact_on_hab_quality(
           quality_impact=total_impact_hab_quality,
@@ -330,7 +330,7 @@ run_pausing_simulations <- function(
           next_landscape_name <- sprintf("rep%s_year%s_%s", replicate, year,  tools::file_path_sans_ext(basename(dynamic_landscapes_list[[length(dynamic_landscapes_list)]])))
         }
         
-        terra::writeRaster(new_hab_qual_rst, file.path(dirpath, "Output_maps", sprintf("%s.tif", next_landscape_name)))
+        terra::writeRaster(new_hab_qual_rst, file.path(dirpath, "Output_Maps", sprintf("%s.tif", next_landscape_name)))
         
         next_landscape <- sprintf("%s.asc", next_landscape_name)
        #new_hab_qual_rst <- terra::as.int(new_hab_qual_rst)
@@ -367,7 +367,7 @@ run_pausing_simulations <- function(
       
     }
     out_rst_stack <- terra::rast(out_rasters)
-    terra::writeRaster(out_rst_stack, file.path(dirpath, "Output_maps", sprintf("rep%s_pop_stack.tif", replicate)))
+    terra::writeRaster(out_rst_stack, file.path(dirpath, "Output_Maps", sprintf("rep%s_pop_stack.tif", replicate)))
     
   }
   
