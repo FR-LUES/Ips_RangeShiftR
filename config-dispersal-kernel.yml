@@ -1,0 +1,21 @@
+default:
+  ips:
+    aggregation_factor: 1
+    replicates: 10
+    years: 50
+  demography:
+    rmax: 0.5
+  dispersal:
+    emigration:
+      D0: 0.7
+      alpha: 10
+      beta: 0.5
+    transfer:
+      short_range_dist: 500
+      long_range_dist: 5000
+      short_dist_prob: 0.995
+  land:
+    carrying_capacity: 1000
+  simulation:
+    out_int_pop: 1
+    out_int_range: 1
