@@ -234,7 +234,11 @@ run_pausing_simulations <- function(
     # Empty raster list to store a stack of population rasters
     out_rasters <- c()
     
+    
+    cat(sprintf("Ips > Replicate %s\n", replicate))
+    
     for (year in 1:years) {
+      cat(sprintf("Ips > ### Year %s ###\n", year))
       
       # If the year is less than or equal to the length of the landscape list,
       # then use the correct landscape in sequence.
@@ -268,30 +272,44 @@ run_pausing_simulations <- function(
         sim_params@simul@OutIntRange <- 0
       }
       
-      # RangeShiftR needs a backslash at end of path
-      result <- RunRS(sim_params, sprintf("%s/", dirpath))
+      rangeshifter_logs <- capture.output({
+        # RangeShiftR needs a backslash at end of path
+        result <<- RunRS(sim_params, sprintf("%s/", dirpath))
+      })
+      cat(paste0("RSr > ", rangeshifter_logs), sep = "\n")
       
+      cat("Ips > Extracting population geometry from RangeShifter outputs\n")
       pop_shp <- extract_pop_file_to_shp(
         sim_params,
         crs(rst_lcm),
         terra::ext(rst_lcm),
         dirpath
       )
-       st_write(pop_shp, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_pop.geojson", replicate,  year)))
       
+      geojson_logs <- capture.output({
+        st_write(pop_shp, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_pop.geojson", replicate,  year)))
+      })
+      cat(paste0("Ips > ", geojson_logs), sep = "\n")
+      
+      cat("Ips > Converting population geometry to raster\n")
       pop_rst <- extract_pop_shp_to_rst(
         pop_shp,
         rst_lcm
       )
-      terra::writeRaster(pop_rst, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_pop.tif", replicate,  year)))
+      pop_rst_path <- file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_pop.tif", replicate,  year))
+      cat("Ips > Saving population raster\n")
+      terra::writeRaster(pop_rst, pop_rst_path)
       out_rasters <- c(out_rasters, pop_rst)
       
-      # Create new inidividuals initialisation file to reinitialise rangeshiftR
+      # Create new individuals initialisation file to reinitialise rangeshiftR
       # with same distribution of individuals as this year
+      cat("Ips > Creating next inds init file\n")
       df_pop_table <- extract_pop_shp_to_table(pop_shp)
       
       new_init_inds_txt <- sprintf('rep%s_year%s_inds.txt', replicate, year)
-      write.table(df_pop_table, file.path(dirpath, "Inputs", new_init_inds_txt), row.names = F, quote = F, sep = '\t')
+      new_init_inds_path <- file.path(dirpath, "Inputs", new_init_inds_txt)
+      cat(sprintf("Ips > Saving next inds init file: %s\n", new_init_inds_path))
+      write.table(df_pop_table, new_init_inds_path, row.names = F, quote = F, sep = '\t')
       sim_params@init@InitIndsFile <- new_init_inds_txt
       
       
@@ -301,6 +319,7 @@ run_pausing_simulations <- function(
            (year %% sim_params@pausingextras@years_for_destruction == 0))
       ) {
         
+        cat("Ips > Calculating population impact on habitat quality\n")
         new_quality_impact_rst <- calculate_pop_impact_on_hab_quality(
           pop_rst=pop_rst,
           years_for_destruction=sim_params@pausingextras@years_for_destruction,
@@ -308,13 +327,18 @@ run_pausing_simulations <- function(
           sim_params=sim_params
         )
         
-        terra::writeRaster(new_quality_impact_rst, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_new_quality_impact.tif", replicate, year)))
+        new_quality_impact_rst_path <- file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_new_quality_impact.tif", replicate, year))
+        cat(sprintf("Ips > Saving quality impact raster: %s\n", new_quality_impact_rst_path))
+        terra::writeRaster(new_quality_impact_rst, new_quality_impact_rst_path)
         
         total_impact_hab_quality <- total_impact_hab_quality + new_quality_impact_rst
         total_impact_hab_quality[total_impact_hab_quality>100] <- 100
         
-        terra::writeRaster(total_impact_hab_quality, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_total_quality_impact.tif", replicate, year)))
+        total_impact_rst_path <- file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_total_quality_impact.tif", replicate, year))
+        cat(sprintf("Ips > Saving total quality raster: %s\n", total_impact_rst_path))
+        terra::writeRaster(total_impact_hab_quality, total_impact_rst_path)
         
+        cat("Ips > Applying impact of population on habitat quality\n")
         new_hab_qual_rst <- apply_pop_impact_on_hab_quality(
           quality_impact=total_impact_hab_quality,
           landscape=next_base_landscape,
@@ -330,11 +354,14 @@ run_pausing_simulations <- function(
           next_landscape_name <- sprintf("rep%s_year%s_%s", replicate, year,  tools::file_path_sans_ext(basename(dynamic_landscapes_list[[length(dynamic_landscapes_list)]])))
         }
         
-        terra::writeRaster(new_hab_qual_rst, file.path(dirpath, "Output_Maps", sprintf("%s.tif", next_landscape_name)))
+        new_hab_qual_rst_path <- file.path(dirpath, "Output_Maps", sprintf("%s.tif", next_landscape_name))
+        cat(sprintf("Ips > Saving new habitat quality raster: %s\n", new_hab_qual_rst_path))
+        terra::writeRaster(new_hab_qual_rst, new_hab_qual_rst_path)
         
         next_landscape <- sprintf("%s.asc", next_landscape_name)
-       #new_hab_qual_rst <- terra::as.int(new_hab_qual_rst)
+        #new_hab_qual_rst <- terra::as.int(new_hab_qual_rst)
         
+        cat(sprintf("Ips > Saving new habitat quality as ASCII: %s\n", next_landscape))
         terra::writeRaster(
           new_hab_qual_rst,
           file.path(dirpath, "Inputs", next_landscape),
@@ -349,6 +376,7 @@ run_pausing_simulations <- function(
       sim_params@land@LandscapeFile <- next_landscape
       sim_params@land@CostsFile <- next_cost_map
       
+      cat(sprintf("Ips > Renaming Rangeshifter output files to match correct replicate and year\n"))
       for (out_file in c("Pop", "Range", "Parameters")) {
         existing_file_path <- file.path(dirpath, "Outputs", sprintf("Batch0_Sim0_Land1_%s.txt", out_file))
         if (file.exists(existing_file_path)) {
@@ -361,27 +389,36 @@ run_pausing_simulations <- function(
       
       # If Population is zero, then break out of this simulation
       if (nrow(pop_shp) == 0) {
-        cat("########### POPULATION OF ZERO -> SIMULATION ENDED EARLY ##########\n")
+        cat("Ips > ### POPULATION OF ZERO -> SIMULATION ENDED EARLY ###\n")
         break
       }
       
     }
+    
+    cat(sprintf("Ips > Replicate finished\n"))
+    stacked_rst_path <- file.path(dirpath, "Output_Maps", sprintf("rep%s_pop_stack.tif", replicate))
+    cat(sprintf("Ips > Saving stacked population raster: %s\n", stacked_rst_path))
     out_rst_stack <- terra::rast(out_rasters)
-    terra::writeRaster(out_rst_stack, file.path(dirpath, "Output_Maps", sprintf("rep%s_pop_stack.tif", replicate)))
+    terra::writeRaster(out_rst_stack, stacked_rst_path)
     
   }
   
   # Merge all the pop and range files available for these simulations
+  cat(sprintf("Ips > Merging population files\n"))
   merge_output_files(dirpath, "Pop")
+  cat(sprintf("Ips > Merging range files\n"))
   merge_output_files(dirpath, "Range")
   
+  cat("Ips > Deleting 'file-per-pause'\n")
   if (!sim_params@pausingextras@keep_files_per_pause) {
     unlink(sprintf("%s/Outputs/file-per-pause", dirpath), recursive=TRUE)
   }
+  cat("Ips > Deleting 'Inputs'\n")
   if (!sim_params@pausingextras@keep_input_files) {
     unlink(sprintf("%s/Inputs", dirpath), recursive=TRUE)
   }
   
+  cat("Ips > Generating summary plots\n")
   # Quick plot of abundance and occupancy for these simulations
   jpeg(file=sprintf("%s/Outputs/%s", dirpath, "abundance-and-occupancy.jpg"))
   par(mfrow=c(1,2))
@@ -528,6 +565,8 @@ run_sims <- function(
   
   dirpath <- file.path(params$output_path, params$batch_name)
   
+  sink(file.path(params$output_path, sprintf("%s.log", params$batch_name)), split=TRUE)
+  
   if (!file.exists(dirpath)) {
     
     aggregation_factor <- 1
@@ -638,5 +677,5 @@ run_sims <- function(
       dirpath = dirpath
     )
   }
-  
+  sink()
 }
