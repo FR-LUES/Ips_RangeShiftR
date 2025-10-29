@@ -1,10 +1,13 @@
-library(terra)
+library(readr)
 library(sf)
+library(terra)
+library(tidyr)
 
 setwd(getSrcDirectory(function(){})[1])
 
 # Print numbers to strings without exponential notion
 options(scipen = 999)
+options(readr.show_progress = FALSE)
 
 
 
@@ -153,6 +156,8 @@ PausingExtras <- function(
     phenips,
     dynamic_landscapes_list,
     dynamic_cost_maps_list,
+    out_int_ind,
+    out_int_paths,
     out_int_range,
     keep_files_per_pause,
     keep_input_files
@@ -169,6 +174,8 @@ PausingExtras <- function(
       phenips="list",
       dynamic_landscapes_list="list",
       dynamic_cost_maps_list="list",
+      out_int_ind="numeric",
+      out_int_paths="numeric",
       out_int_range="numeric",
       keep_files_per_pause="logical",
       keep_input_files="logical"
@@ -185,6 +192,8 @@ PausingExtras <- function(
     phenips=phenips,
     dynamic_landscapes_list=dynamic_landscapes_list,
     dynamic_cost_maps_list=dynamic_cost_maps_list,
+    out_int_ind=out_int_ind,
+    out_int_paths=out_int_paths,
     out_int_range=out_int_range,
     keep_files_per_pause=keep_files_per_pause,
     keep_input_files=keep_input_files
@@ -210,6 +219,8 @@ run_pausing_simulations <- function(
   base_rmax <- sim_params@demog@Rmax
   dynamic_landscapes_list <- sim_params@pausingextras@dynamic_landscapes_list
   dynamic_cost_maps_list <- sim_params@pausingextras@dynamic_cost_maps_list
+  out_int_ind <- sim_params@pausingextras@out_int_ind
+  out_int_paths <- sim_params@pausingextras@out_int_paths
   out_int_range <- sim_params@pausingextras@out_int_range
   
   rst_lcm <- terra::rast(file.path(
@@ -235,7 +246,7 @@ run_pausing_simulations <- function(
     out_rasters <- c()
     
     
-    cat(sprintf("Ips > Replicate %s\n", replicate))
+    cat(sprintf("Ips > ### Replicate %s ###\n", replicate))
     
     for (year in 1:years) {
       cat(sprintf("Ips > ### Year %s ###\n", year))
@@ -271,6 +282,19 @@ run_pausing_simulations <- function(
       } else {
         sim_params@simul@OutIntRange <- 0
       }
+      # Only save a ind file at the interval specified with out_int_ind
+      if ((out_int_ind > 0) & ((year == 1) | (year %% out_int_ind == 0))) {
+        sim_params@simul@OutIntInd <- 1
+      } else {
+        sim_params@simul@OutIntInd <- 0
+      }
+      # Only save a paths file at the interval specified with out_int_ind
+      if ((out_int_paths > 0) & ((year == 1) | (year %% out_int_paths == 0))) {
+        sim_params@simul@OutIntPaths <- 1
+      } else {
+        sim_params@simul@OutIntPaths <- 0
+      }
+      
       
       rangeshifter_logs <- capture.output({
         # RangeShiftR needs a backslash at end of path
@@ -377,12 +401,26 @@ run_pausing_simulations <- function(
       sim_params@land@CostsFile <- next_cost_map
       
       cat(sprintf("Ips > Renaming Rangeshifter output files to match correct replicate and year\n"))
-      for (out_file in c("Pop", "Range", "Parameters")) {
-        existing_file_path <- file.path(dirpath, "Outputs", sprintf("Batch0_Sim0_Land1_%s.txt", out_file))
+      for (out_file in c("Inds", "MovePaths", "Pop", "Range", "Parameters")) {
+        
+        # Base filename format
+        filename_format <- "Batch0_Sim0_Land1_%s.txt"
+        
+        # Check for the exceptions "Inds" and "MovePaths"
+        if (out_file %in% c("Inds", "MovePaths")) {
+          filename_format <- "Batch0_Sim0_Land1_Rep0_%s.txt"
+        }
+        
+        # Construct the existing file path
+        existing_file_name <- sprintf(filename_format, out_file)
+        existing_file_path <- file.path(dirpath, "Outputs", existing_file_name)
+        
+        # Check if the file exists and rename it
         if (file.exists(existing_file_path)) {
           file.rename(
             existing_file_path,
-            file.path(dirpath, "Outputs", "file-per-pause", sprintf("rep%s_year%s_Batch0_Sim0_Land1_%s.txt", replicate, year, out_file))
+            file.path(dirpath, "Outputs", "file-per-pause", 
+                      sprintf("rep%s_year%s_Batch0_Sim0_Land1_%s.txt", replicate, year, out_file))
           )
         }
       }
@@ -406,8 +444,18 @@ run_pausing_simulations <- function(
   # Merge all the pop and range files available for these simulations
   cat(sprintf("Ips > Merging population files\n"))
   merge_output_files(dirpath, "Pop")
-  cat(sprintf("Ips > Merging range files\n"))
-  merge_output_files(dirpath, "Range")
+  if (out_int_ind > 0) {
+    cat(sprintf("Ips > Merging ind files\n"))
+    merge_output_files(dirpath, "Inds")
+  }
+  if (out_int_paths > 0) {
+    cat(sprintf("Ips > Merging paths files\n"))
+    merge_output_files(dirpath, "MovePaths")
+  }
+  if (out_int_range > 0) {
+    cat(sprintf("Ips > Merging range files\n"))
+    merge_output_files(dirpath, "Range")
+  }
   
   cat("Ips > Deleting 'file-per-pause'\n")
   if (!sim_params@pausingextras@keep_files_per_pause) {
@@ -480,7 +528,7 @@ merge_output_files <- function(
             # (as this is the first year of change), and renumber the year
             # to match the pausing count of years from the file name
             if (file.exists(data_txt_path)) {
-              df_data <- read.table(data_txt_path, sep="\t", header=T)
+              df_data <- suppressWarnings(readr::read_tsv(data_txt_path, col_names = TRUE, show_col_types = FALSE))
               if (year < max(year_list)) {
                 df_data <- subset(df_data, Year == 0)
               }
@@ -551,6 +599,18 @@ prepare_sim_dirs <- function(dirpath, dynamic_landscapes, dynamic_cost_maps, par
             file.path(dirpath, "Inputs"))
 }
 
+save_params_to_csv <- function(params, dirpath) {
+  
+  df_stacked <- stack(params)
+  df_pivoted <- df_stacked %>%
+    tidyr::pivot_wider(
+      names_from = ind,
+      values_from = values
+    )
+  
+  write.table(df_pivoted, file.path(dirpath, "params.csv"), row.names = F, quote = F, sep = ',')
+}
+
 
 run_sims <- function(
   x,
@@ -566,6 +626,10 @@ run_sims <- function(
   dirpath <- file.path(params$output_path, params$batch_name)
   
   sink(file.path(params$output_path, sprintf("%s.log", params$batch_name)), split=TRUE)
+  on.exit(sink())
+  current_time <- Sys.time()
+  timestamp <- strptime(current_time, "%Y-%m-%d %H:%M:%S")
+  cat(sprintf("Ips > ###### Starting batch '%s' at %s ######\n\n", params$batch_name, timestamp))
   
   if (!file.exists(dirpath)) {
     
@@ -581,6 +645,8 @@ run_sims <- function(
     dynamic_cost_maps <- df_landscapes$cost_map
     
     prepare_sim_dirs(dirpath, dynamic_landscapes, dynamic_cost_maps, params)
+    
+    save_params_to_csv(params, dirpath)
       
     land <- ImportedLandscape(
       LandscapeFile = basename(dynamic_landscapes[1]),
@@ -642,7 +708,9 @@ run_sims <- function(
       Years = rangeshiftr_steps,
       Replicates = 1, # one here because of pausing (controlled with pausingextras)
       OutIntPop = 1, # one here because of pausing (controlled with pausingextras)
-      OutIntRange = 1 # one here because of pausing (controlled with pausingextras)
+      OutIntRange = 1, # one here because of pausing (controlled with pausingextras)
+      OutIntInd = 1, # one here because of pausing (controlled with pausingextras)
+      OutIntPaths = 1 # one here because of pausing (controlled with pausingextras)
     )
     
     sim_params <-
@@ -665,6 +733,8 @@ run_sims <- function(
       phenips = as.list(phenips),
       dynamic_landscapes_list = as.list(dynamic_landscapes),
       dynamic_cost_maps_list = as.list(dynamic_cost_maps),
+      out_int_ind = params$out_int_ind,
+      out_int_paths = params$out_int_path,
       out_int_range = params$out_int_range,
       keep_files_per_pause = params$keep_files_per_pause,
       keep_input_files = params$keep_input_files
@@ -677,5 +747,4 @@ run_sims <- function(
       dirpath = dirpath
     )
   }
-  sink()
 }
