@@ -17,18 +17,34 @@ extract_pop_file_to_shp <- function(
     geom_extent,
     dirpath
 ) {
+  
+  target_year <- sim_params@simul@Years
+  resolution <- sim_params@land@Resolution
+  xmin <- geom_extent$xmin
+  ymin <- geom_extent$ymin
+  
+  # Path to the population file from the last RangeShiftR simulation
+  pop_file_path <- file.path(dirpath, "Outputs", "Batch0_Sim0_Land1_Pop.txt")
 
-  df_pop <- read.table(file.path(dirpath, "Outputs", "Batch0_Sim0_Land1_Pop.txt"), sep="\t", header=T)
-  df_pop <- subset(df_pop, Year==sim_params@simul@Years & NInd > 0)
-  df_pop$x_coord <- (df_pop$x + 0.5) * sim_params@land@Resolution + geom_extent$xmin
-  df_pop$y_coord <- (df_pop$y + 0.5) * sim_params@land@Resolution + geom_extent$ymin
+  df_pop <- readr::read_tsv(pop_file_path, show_col_types = FALSE) %>%
+    
+    # Filter for the target year and remove extinct pixels
+    dplyr::filter(Year == target_year, NInd > 0) %>%
+    
+    # Convert cell indices (x, y) to map coordinates (center of pixel)
+    dplyr::mutate(
+      x_coord = (x + 0.5) * resolution + xmin,
+      y_coord = (y + 0.5) * resolution + ymin
+    )
+  
+  # Convert to spatial data frame
   if (nrow(df_pop) > 0) {
-    df_pop <- st_as_sf(df_pop, coords = c("x_coord","y_coord"))
-    df_pop <- df_pop %>% st_set_crs(st_crs(coord_ref_sys))
+    df_pop <- df_pop %>% 
+      sf::st_as_sf(coords = c("x_coord", "y_coord")) %>%
+      sf::st_set_crs(st_crs(coord_ref_sys))
   }
 
   return(df_pop)
-
 }
 
 
