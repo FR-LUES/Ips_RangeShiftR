@@ -28,8 +28,13 @@ extract_pop_file_to_shp <- function(
 
   df_pop <- readr::read_tsv(pop_file_path, show_col_types = FALSE) %>%
     
-    # Filter for the target year and remove extinct pixels
-    dplyr::filter(Year == target_year, NInd > 0) %>%
+    # Filter for the target year and remove extinct or NA pixels
+    dplyr::filter(
+      Year == target_year,
+      NInd > 0,
+      !is.na(x), 
+      !is.na(y)
+    ) %>%
     
     # Convert cell indices (x, y) to map coordinates (center of pixel)
     dplyr::mutate(
