@@ -51,11 +51,17 @@ calculate_pop_impact_on_hab_quality <- function(
     apply_destruction_annually,
     sim_params
 ) {
-
+  
+  K_per_ha <- sim_params@land@K_or_DensDep
+  resolution_m <- sim_params@land@Resolution
+  
   # Calculate carrying capacity per pixel
   # Rangeshifter stores it as per hectare
-  carry_cap_per_pixel <- sim_params@land@K_or_DensDep * (sim_params@land@Resolution^2 / 10000)
+  pixel_area_ha <- (resolution_m^2 / 10000)
+  carry_cap_per_pixel <- K_per_ha * pixel_area_ha
 
+  # Calculate quality impact by deviding the occupancy by the number of years
+  # it would take for destruction if fully occupied
   divisor <- ifelse(apply_destruction_annually, years_for_destruction, 1)
 
   quality_impact <- (pop_rst / carry_cap_per_pixel * 100) / divisor
@@ -88,7 +94,6 @@ apply_pop_impact_on_hab_quality <- function(
   # hab_qual_rst <- terra::as.int(hab_qual_rst) #test
   #
   return(hab_qual_rst)
-
 }
 
 
