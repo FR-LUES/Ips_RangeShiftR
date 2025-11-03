@@ -4,7 +4,7 @@ dynamic_landscapes: ../data/dynamic_landscapes_1.csv
 keep_files_per_pause: FALSE
 keep_input_files: FALSE
 output_path: ../outputs
-out_int_ind: 5
+out_int_ind: 0
 out_int_paths: 0
 out_int_range: 5
 phenips_file: ../data/phenips1.csv
