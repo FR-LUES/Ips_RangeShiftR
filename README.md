@@ -29,7 +29,7 @@ In this file, you should specify the base config and batch file, and it will run
 
 The base config (`BASE_CONFIG_PATH <- "../config-SMS.yml"`) should specify all simulation parameters. The batch file (`BATCHES_FILE_PATH <- "../data/batches.csv"`) should specify a separate simulation in each row (named based on the `batch_name` column), any parameters specified in the batch file will override the base config parameters.
 
-### Existing RangeShiftR parameters that can currently be controlled:
+### RangeShiftR parameters that can currently be controlled:
 ```yaml
 # Demography
 rmax: 2
@@ -61,7 +61,7 @@ carrying_capacity: 1000
 
 ### Additional "pausing" parameters
 ```yaml
-# does habitat degradation happen each year, or only after `year_for_destruction` years
+# Does the habitat destruction impact quality every year, or only after `years_for_destruction`
 apply_destruction_annually: TRUE
 
 # path to a csv file specifying the habitat quality rasters and cost map rasters to be used for each year of the simulation
@@ -76,7 +76,13 @@ keep_input_files: FALSE
 # the base output path within which the simulations will be saved
 output_path: ../outputs
 
-# The interval at which to save the species range file (e.g. 0 means never, 1 means every year)
+# The interval at which to save the individuals file (0 means never, 1 means every year)
+out_int_ind: 0
+
+# The interval at which to save the in SMS path file (0 means never, 1 means every year)
+out_int_paths: 0
+
+# The interval at which to save the species range file (0 means never, 1 means every year)
 out_int_range: 5
 
 # The phenips file specifying the number of generations for each year of the simulation
