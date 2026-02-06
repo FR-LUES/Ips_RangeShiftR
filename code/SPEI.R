@@ -56,8 +56,76 @@ fod_result <- process_polygon(fod_poly, "Forest_of_Dean")
 nym_result <- process_polygon(nym_poly, "NYM")
 kielder_result <- process_polygon(kielder_poly, "Kielder_smallerarea")
 
+
+
+
 write.csv(fod_result, "Z:/Common/Fiona Plenderleith/IpsShift2/Landscapes/SPEI_Forest_of_Dean.csv", row.names = FALSE)
 write.csv(nym_result, "Z:/Common/Fiona Plenderleith/IpsShift2/Landscapes/SPEI_NYM.csv", row.names = FALSE)
 write.csv(kielder_result, "Z:/Common/Fiona Plenderleith/IpsShift2/Landscapes/SPEI_Kielder.csv", row.names = FALSE)
+
+
+### spei - addition of quality predcitiomn
+
+
+
+# ---------------------------------------------------------
+# FULL SCRIPT TO ADD 'pred' COLUMN TO ALL THREE CSV FILES
+# ---------------------------------------------------------
+
+
+SPEI_train <- seq(-4, 0, 0.5)
+qual_train <- c(100, 90, 84, 73, 50, 20, 10, 4, 0)
+
+
+# ---------------------------------------------------------
+# Prediction function
+# ---------------------------------------------------------
+predict_quality <- function(values, SPEI_train, qual_train) {
+  
+  pred <- approx(
+    x = SPEI_train,
+    y = qual_train,
+    xout = values,
+    rule = 2
+  )$y
+  
+  pred <- round(pred)
+  pred <- pmax(pmin(pred, 100), 0)
+  pred[values > 0] <- 0
+  pred[is.na(pred)] <- 0
+  
+  return(pred)
+}
+
+# ---------------------------------------------------------
+# File paths
+# ---------------------------------------------------------
+csv_files <- c(
+  "Z:/Common/Fiona Plenderleith/IpsShift2/Landscapes/SPEI_Kielder.csv",
+  "Z:/Common/Fiona Plenderleith/IpsShift2/Landscapes/SPEI_Forest_of_Dean.csv",
+  "Z:/Common/Fiona Plenderleith/IpsShift2/Landscapes/SPEI_NYM.csv"
+)
+
+# ---------------------------------------------------------
+# Process each CSV
+# ---------------------------------------------------------
+for (f in csv_files) {
+  
+  df <- read.csv(f)
+  
+  if (!"SPEI" %in% names(df)) {
+    stop(paste("Column 'mean' not found in:", f))
+  }
+  
+  df$pred <- predict_quality(df$SPEI, SPEI_train, qual_train)
+  
+  write.csv(df, f, row.names = FALSE)
+  message("Updated CSV saved: ", f)
+}
+
+# ---------------------------------------------------------
+# Done
+# ---------------------------------------------------------
+message("All CSV files processed successfully.")
 
 
