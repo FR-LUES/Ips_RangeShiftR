@@ -1,7 +1,7 @@
 library(terra)
 library(sf)
 
-setwd(getSrcDirectory(function(){})[1])
+#setwd(getSrcDirectory(function(){})[1])
 
 # Print numbers to strings without exponential notion
 options(scipen = 999)
@@ -259,7 +259,7 @@ run_pausing_simulations <- function(
         stop(sprintf("phenips value must be numeric"))
       }
       # Apply phenips multiplier to the base Rmax
-      sim_params@demog@Rmax <- phenips * base_rmax
+      sim_params@demog@Rmax <- phenips 
       
       # Only save a range file at the interval specified with out_int_range
       if ((out_int_range > 0) & ((year == 1) | (year %% out_int_range == 0))) {
@@ -535,7 +535,7 @@ run_sims <- function(
     rangeshiftr_steps <- 1
     
     df_phenips <- read.csv(params$phenips_file)
-    phenips <- df_phenips$Generations
+    phenips <- df_phenips$Rmax
     
     df_landscapes <- read.csv(params$dynamic_landscapes)
     dynamic_landscapes <- df_landscapes$landscape
