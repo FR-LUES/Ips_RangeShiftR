@@ -1,66 +1,132 @@
-
-
+#############################################
+# LOAD LIBRARIES
+#############################################
 
 library(Rcpp)
 library(devtools)
 library(Rdpack)
-devtools::install_github("https://github.com/RangeShifter/RangeShiftR-pkg", ref = "main", subdir="RangeShiftR")
+devtools::install_github("https://github.com/RangeShifter/RangeShiftR-pkg", 
+                         ref = "main", subdir = "RangeShiftR")
 library(parallel)
 library(RangeShiftR)
 library(yaml)
 
-
-# Set working directory (Databricks workspace path)
-#install.packages("terra")
-setwd("/dbfs/mnt/lab/unrestricted/Fiona/DASH_files/FoD_2030/")
-
 # Load custom functions
 source("/Workspace/Users/fiona.plenderleith@defra.onmicrosoft.com/RS/code/ips-shift-functions.R")
 
-#############
-# PARAMETERS
-#############
 
-# Base config file with default simulation parameters
-BASE_CONFIG_PATH <- "/Workspace/Users/fiona.plenderleith@defra.onmicrosoft.com/RS/config-SMS.yml"
-#
-# Batch file with parameter variations
-BATCHES_FILE_PATH <- "/dbfs/mnt/lab/unrestricted/Fiona/DASH_files/FoD_2030/Data/Batches_FoD_2030_expanded.csv"
+#############################################
+# USER PARAMETERS (SET HERE)
+#############################################
 
-# Debug mode: TRUE = run one simulation locally; FALSE = run all in parallel
+site_val <- "FoD_updated"     # <--- CHANGE SITE HERE
+year     <- 2020              # <--- CHANGE YEAR HERE
+
+BASE_CONFIG_PATH  <- "/Workspace/Users/fiona.plenderleith@defra.onmicrosoft.com/RS/config-SMS.yml"
+BATCHES_FILE_PATH <- sprintf("/dbfs/mnt/lab/unrestricted/Fiona/Batches_%s_%d_expanded.csv",site_val, year)
+
 DEBUG <- FALSE
+#############################################
+# LOAD BASE CONFIG & INPUT TABLES
+#############################################
 
-#############
-# Load Config and Batches
-#############
-
-# Load base configuration
 base_config <- yaml::read_yaml(BASE_CONFIG_PATH)
 
-# Load batch definitions and split into list for iteration
-batches <- read.csv(BATCHES_FILE_PATH)
-dynamic <- read.csv("/dbfs/mnt/lab/unrestricted/Fiona/DASH_files/FoD_2030/Data/dynamic_landscapes_2030.csv")
-# Define the new base path
-new_base <- "/dbfs/mnt/lab/unrestricted/Fiona/DASH_files/FoD_2030/Data"
+# -------------------------------
+# Load batches (already year + site dependent)
+# -------------------------------
+batches <- read.csv(BATCHES_FILE_PATH, stringsAsFactors = FALSE)
 
-# Function to replace leading ../data with your absolute path
-replace_data_prefix <- function(x) {
-  if (is.character(x)) {
-    # Replace ONLY when the string starts with ../data
-    sub("^\\.\\./data", new_base, x)
-  } else {
-    x
-  }
+# -------------------------------
+# Load original dynamic file (year‑dependent)
+# -------------------------------
+dynamic_in_path <- sprintf(
+  "/dbfs/mnt/lab/unrestricted/Fiona/dynamic_landscapes_%d.csv",
+  year
+)
+dynamic <- read.csv(dynamic_in_path, stringsAsFactors = FALSE)
+
+
+#############################################
+# PATH REPLACEMENT FUNCTION
+#############################################
+
+replace_data_prefix <- function(x, site) {
+  if (!is.character(x)) return(x)
+
+  stripped <- sub("^\\.\\./data(/processed)?/", "", x)
+  new_base <- "/dbfs/mnt/lab/unrestricted/Fiona"
+
+  # phenips* and dynamic_landscapes* go in Fiona/
+  # everything else goes in Fiona/<site>/
+  ifelse(
+    grepl("^(phenips|dynamic_landscapes)", stripped, ignore.case = TRUE),
+    file.path(new_base, stripped, fsep = "/"),
+    file.path(new_base, site, stripped, fsep = "/")
+  )
 }
 
-# Apply to all character columns
-batches[] <- lapply(batches, replace_data_prefix)
-dynamic[] <- lapply(dynamic, replace_data_prefix)
-write.csv(dynamic, "/dbfs/mnt/lab/unrestricted/Fiona/DASH_files/FoD_2030/Data/dynamic_landscapes_2030.csv")
-str(dynamic)
-batches_array <- split(batches, seq(nrow(batches)))
 
-#### create cost landscape
+#############################################
+# APPLY PATH FIXES TO BATCHES
+#############################################
+
+batch_path_cols <- intersect(
+  c("phenips_file", "init_inds_file", "dynamic_landscapes"),
+  names(batches)
+)
+
+for (col in batch_path_cols) {
+  batches[[col]] <- replace_data_prefix(batches[[col]], site_val)
+}
+
+# -------------------------------
+# Correct PHENIPS filename explicitly (your required pattern)
+# -------------------------------
+get_phenips_prefix <- function(site_val) sub("_updated$", "", site_val)
+
+phenips_prefix <- get_phenips_prefix(site_val)
+
+batches$phenips_file <- sprintf(
+  "/dbfs/mnt/lab/unrestricted/Fiona/phenips%s%d.csv",
+  phenips_prefix, year
+)
+
+# -------------------------------
+# Point batches to UPDATED dynamic file
+# -------------------------------
+batches$dynamic_landscapes <- sprintf(
+  "/dbfs/mnt/lab/unrestricted/Fiona/dynamic_landscapes_%d_UPDATE.csv",
+  year
+)
+
+
+#############################################
+# APPLY PATH FIXES TO DYNAMIC FILE
+#############################################
+
+char_cols <- vapply(dynamic, is.character, logical(1))
+dynamic[char_cols] <- lapply(dynamic[char_cols], function(col)
+  replace_data_prefix(col, site_val)
+)
+
+
+#############################################
+# SAVE UPDATED DYNAMIC FILE
+#############################################
+
+dynamic_out_path <- sprintf(
+  "/dbfs/mnt/lab/unrestricted/Fiona/dynamic_landscapes_%d_UPDATE.csv",
+  year
+)
+
+write.csv(dynamic, dynamic_out_path, row.names = FALSE)
+
+
+#############################################
+# CREATE COST LANDSCAPE (terra)
+#############################################
+
 library(terra)
 
 land_path <- dynamic$landscape[1]
@@ -68,14 +134,22 @@ asc_out   <- dynamic$cost_map[1]
 
 land_rast <- rast(land_path)
 
-# Create cost raster (all cells = 1)
+# Cost raster = all 1s
 cost_rast <- setValues(land_rast, 1)
 
-# Set NA flag (RangeShifter requires integer nodata)
+# RangeShifter requires integer NA flag
 NAflag(cost_rast) <- -9999
 
-# ✔ Write clean ASCII in RangeShifter-compatible format
-writeRaster(cost_rast, asc_out, filetype = "AAIGrid", overwrite = TRUE, NAflag = -9999)
+writeRaster(
+  cost_rast,
+  asc_out,
+  filetype = "AAIGrid",
+  overwrite = TRUE,
+  NAflag = -9999
+)
+
+
+batches_array <- split(batches, seq(nrow(batches)))
 
 # Run Simulations
 #############
@@ -95,4 +169,3 @@ if (DEBUG) {
   # Run all simulations in parallel
   future_map(batches_array, ~run_sims(.x, base_config))
 }
-
