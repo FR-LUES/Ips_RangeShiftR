@@ -5,21 +5,19 @@
 library(Rcpp)
 library(devtools)
 library(Rdpack)
-devtools::install_github("https://github.com/RangeShifter/RangeShiftR-pkg", 
-                         ref = "main", subdir = "RangeShiftR")
 library(parallel)
+library(devtools)
 library(RangeShiftR)
 library(yaml)
-
+message("✅ RangeShiftR version: ", packageVersion("RangeShiftR"))
 # Load custom functions
 source("/Workspace/Users/fiona.plenderleith@defra.onmicrosoft.com/RS/code/ips-shift-functions.R")
-
 
 #############################################
 # USER PARAMETERS (SET HERE)
 #############################################
 
-site_val <- "FoD_updated"     # <--- CHANGE SITE HERE
+site_val <- "FoD_updated2"     # <--- CHANGE SITE HERE
 year     <- 2020              # <--- CHANGE YEAR HERE
 
 BASE_CONFIG_PATH  <- "/Workspace/Users/fiona.plenderleith@defra.onmicrosoft.com/RS/config-SMS.yml"
@@ -36,6 +34,13 @@ base_config <- yaml::read_yaml(BASE_CONFIG_PATH)
 # Load batches (already year + site dependent)
 # -------------------------------
 batches <- read.csv(BATCHES_FILE_PATH, stringsAsFactors = FALSE)
+batches$replicates <- 100
+
+run_date <- format(Sys.Date(), "%Y%m%d")
+batch_output <- sprintf("/dbfs/mnt/lab/unrestricted/Fiona/Outputs/%s/%d_batch%s",site_val, year, run_date)
+batches$output_path <- batch_output
+message("✔ Updated batches$output_path →")
+# Create once (no error if it already exists)
 
 # -------------------------------
 # Load original dynamic file (year‑dependent)
@@ -83,7 +88,7 @@ for (col in batch_path_cols) {
 # -------------------------------
 # Correct PHENIPS filename explicitly (your required pattern)
 # -------------------------------
-get_phenips_prefix <- function(site_val) sub("_updated$", "", site_val)
+get_phenips_prefix <- function(site_val) sub("_updated2$", "", site_val)
 
 phenips_prefix <- get_phenips_prefix(site_val)
 
@@ -150,22 +155,29 @@ writeRaster(
 
 
 batches_array <- split(batches, seq(nrow(batches)))
+message("Setup complete — proceeding to simulation stage.")
+cat("--------------------------------------------------\n")
+cat("All configuration, paths, and cost maps prepared.\n")
+cat("--------------------------------------------------\n")
+
+batch_output_file <- paste0(batch_output, "/batches.csv")
 
 # Run Simulations
 #############
 
 if (DEBUG) {
-  # Run only the first simulation for debugging
+  
+  message("DEBUG = TRUE → Running only first batch")
   run_sims(batches_array[[1]], base_config)
+
 } else {
-  # Load parallel packages
-  install.packages("furrr")
-  library(furrr)
-  library(future)
 
-  # Set up parallel plan (adjust workers if needed)
-  plan(multisession, workers = parallel::detectCores()/2)
+  message("Running sequentially over all batches…")
 
-  # Run all simulations in parallel
-  future_map(batches_array, ~run_sims(.x, base_config))
+  for (i in seq_along(batches_array)) {
+    message(sprintf("→ Running batch %d of %d", i, length(batches_array)))
+    run_sims(batches_array[[i]], base_config)
+  }
 }
+
+write.csv(batches, batch_output_file, row.names = FALSE)

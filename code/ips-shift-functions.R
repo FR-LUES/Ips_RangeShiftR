@@ -1,8 +1,14 @@
+library(Rcpp)
+library(devtools)
+
+library(Rdpack)
+
 library(terra)
 library(sf)
-
-#setwd(getSrcDirectory(function(){})[1])
-
+library(yaml)
+library(sf)
+library(terra)
+library(RangeShiftR)
 # Print numbers to strings without exponential notion
 options(scipen = 999)
 
@@ -21,7 +27,7 @@ extract_pop_file_to_shp <- function(
   df_pop$y_coord <- (df_pop$y + 0.5) * sim_params@land@Resolution + geom_extent$ymin
   if (nrow(df_pop) > 0) {
     df_pop <- st_as_sf(df_pop, coords = c("x_coord","y_coord"))
-    df_pop <- df_pop %>% st_set_crs(st_crs(coord_ref_sys))
+    df_pop <- df_pop %>% st_set_crs(st_crs(27700))
   }
   
   return(df_pop)
@@ -131,7 +137,7 @@ extract_pop_shp_to_rst <- function(
     pop_shp,
     rst_lcm
 ) {
-  
+  setMinMax(rst_lcm)
   pop_rst <- terra::classify(rst_lcm, cbind(minmax(rst_lcm)[1], minmax(rst_lcm)[2], 0))
   if (sum(pop_shp$NInd) > 0) {
     pop_rst <- terra::rasterize(pop_shp, pop_rst, field="NInd")
@@ -215,7 +221,7 @@ run_pausing_simulations <- function(
   rst_lcm <- terra::rast(file.path(
     dirpath,
     "Inputs",
-    sprintf("%s.tif", tools::file_path_sans_ext(basename(dynamic_landscapes_list[[1]])))
+    sprintf("%s.asc", tools::file_path_sans_ext(basename(dynamic_landscapes_list[[1]])))
   ))
   
   start_init <- sim_params@init
@@ -259,7 +265,7 @@ run_pausing_simulations <- function(
         stop(sprintf("phenips value must be numeric"))
       }
       # Apply phenips multiplier to the base Rmax
-      sim_params@demog@Rmax <- phenips 
+      sim_params@demog@Rmax <- phenips
       
       # Only save a range file at the interval specified with out_int_range
       if ((out_int_range > 0) & ((year == 1) | (year %% out_int_range == 0))) {
@@ -283,7 +289,7 @@ run_pausing_simulations <- function(
         pop_shp,
         rst_lcm
       )
-      terra::writeRaster(pop_rst, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_pop.tif", replicate,  year)))
+      terra::writeRaster(pop_rst, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_pop.asc", replicate,  year)))
       out_rasters <- c(out_rasters, pop_rst)
       
       # Create new inidividuals initialisation file to reinitialise rangeshiftR
@@ -308,18 +314,18 @@ run_pausing_simulations <- function(
           sim_params=sim_params
         )
         
-        terra::writeRaster(new_quality_impact_rst, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_new_quality_impact.tif", replicate, year)))
+        terra::writeRaster(new_quality_impact_rst, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_new_quality_impact.asc", replicate, year)))
         
         total_impact_hab_quality <- total_impact_hab_quality + new_quality_impact_rst
         total_impact_hab_quality[total_impact_hab_quality>100] <- 100
         
-        terra::writeRaster(total_impact_hab_quality, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_total_quality_impact.tif", replicate, year)))
+        terra::writeRaster(total_impact_hab_quality, file.path(dirpath, "Output_Maps", sprintf("rep%s_year%s_total_quality_impact.asc", replicate, year)))
         
         new_hab_qual_rst <- apply_pop_impact_on_hab_quality(
           quality_impact=total_impact_hab_quality,
           landscape=next_base_landscape,
           sim_params=sim_params,
-          coord_ref_sys=crs(rst_lcm),
+          coord_ref_sys="EPSG:27700",
           geom_extent=terra::ext(rst_lcm),
           dirpath=dirpath
         )
@@ -330,7 +336,7 @@ run_pausing_simulations <- function(
           next_landscape_name <- sprintf("rep%s_year%s_%s", replicate, year,  tools::file_path_sans_ext(basename(dynamic_landscapes_list[[length(dynamic_landscapes_list)]])))
         }
         
-        terra::writeRaster(new_hab_qual_rst, file.path(dirpath, "Output_Maps", sprintf("%s.tif", next_landscape_name)))
+        terra::writeRaster(new_hab_qual_rst, file.path(dirpath, "Output_Maps", sprintf("%s.asc", next_landscape_name)))
         
         next_landscape <- sprintf("%s.asc", next_landscape_name)
        #new_hab_qual_rst <- terra::as.int(new_hab_qual_rst)
@@ -366,9 +372,27 @@ run_pausing_simulations <- function(
       }
       
     }
+
     out_rst_stack <- terra::rast(out_rasters)
-    terra::writeRaster(out_rst_stack, file.path(dirpath, "Output_Maps", sprintf("rep%s_pop_stack.tif", replicate)))
     
+# Create temporary directory
+tempdirpath <- tempfile(pattern = "pop_stack")
+dir.create(tempdirpath)
+
+# Create full path to temporary file
+tempfile_path <- file.path(tempdirpath, sprintf("rep%s_pop_stack.tif", replicate))
+
+# Write to temporary location
+terra::writeRaster(out_rst_stack, tempfile_path, filetype = "GTiff", overwrite = TRUE)
+
+# Define DBFS destination path
+  dbfs_path <- file.path(dirpath, "Output_Maps", sprintf("rep%s_pop_stack.tif", replicate))
+
+# Copy to DBFS
+  file.copy(tempfile_path, dbfs_path)
+
+
+
   }
   
   # Merge all the pop and range files available for these simulations
@@ -500,13 +524,13 @@ prepare_sim_dirs <- function(dirpath, dynamic_landscapes, dynamic_cost_maps, par
   for (landscape_path in unique(dynamic_landscapes)) {
     file.copy(file.path(landscape_path),
               file.path(dirpath, "Inputs"))
-    file.copy(sprintf("%s.tif", tools::file_path_sans_ext(landscape_path)),
+    file.copy(sprintf("%s.asc", tools::file_path_sans_ext(landscape_path)),
               file.path(dirpath, "Inputs"))
   }
   for (cost_map_path in unique(dynamic_cost_maps)) {
     file.copy(file.path(cost_map_path),
               file.path(dirpath, "Inputs"))
-    file.copy(sprintf("%s.tif", tools::file_path_sans_ext(cost_map_path)),
+    file.copy(sprintf("%s.asc", tools::file_path_sans_ext(cost_map_path)),
               file.path(dirpath, "Inputs"))
   }
   
@@ -515,9 +539,10 @@ prepare_sim_dirs <- function(dirpath, dynamic_landscapes, dynamic_cost_maps, par
 }
 
 
+
 run_sims <- function(
-  x,
-  base_config
+    x,
+    base_config
 ) {
   
   params <- modifyList(base_config, x)
@@ -542,7 +567,7 @@ run_sims <- function(
     dynamic_cost_maps <- df_landscapes$cost_map
     
     prepare_sim_dirs(dirpath, dynamic_landscapes, dynamic_cost_maps, params)
-      
+    
     land <- ImportedLandscape(
       LandscapeFile = basename(dynamic_landscapes[1]),
       CostsFile = basename(dynamic_cost_maps[1]),
@@ -554,7 +579,7 @@ run_sims <- function(
     demo <- Demography(
       ReproductionType = 1,  # sexual
       Rmax = params$rmax,
-      bc = 2
+      bc = 2, StageStruct = FALSE
     )
     
     disp <- Dispersal(
@@ -577,14 +602,20 @@ run_sims <- function(
         StageDep = FALSE,
         SexDep = TRUE,
         DensDep = TRUE,
-        FindMate = c(TRUE, FALSE),
-        # Female requires mate, male does not
+        
+        # ✅ Female must find mate, male does not
+        FindMate = as.logical(c(TRUE, FALSE)),
+        
+        # ✅ Correct order: sex, S0, αS (slope), βS (inflection)
         Settle = matrix(
-          c(0, params$max_settlement_prob, params$density_inflection, params$density_slope,  # Female: αS = dens_inflection, βS = dens_slope
-            1, params$max_settlement_prob, params$density_inflection, params$density_slope),   # Male: same),
+          c(
+            0, params$max_settlement_prob, params$density_slope, params$density_inflection,
+            1, params$max_settlement_prob, params$density_slope, params$density_inflection
+          ),
           ncol = 4,
           byrow = TRUE
         ),
+        
         MinSteps = params$min_steps,
         MaxSteps = params$max_steps,
         MaxStepsYear = params$max_steps
@@ -600,7 +631,7 @@ run_sims <- function(
     
     sim <- Simulation(
       Simulation = 0,
-      Years = rangeshiftr_steps,
+      Years = 1,
       Replicates = 1, # one here because of pausing (controlled with pausingextras)
       OutIntPop = 1, # one here because of pausing (controlled with pausingextras)
       OutIntRange = 1 # one here because of pausing (controlled with pausingextras)
