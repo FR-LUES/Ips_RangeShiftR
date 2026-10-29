@@ -1,107 +1,103 @@
 # Ips_RangeShiftR
 
-This repository contains R code to run RangeShiftR within a "pausing" framework that allows for interactions between the landscape and the modelled species.
+This repository contains the R scripts, configuration files, and analysis notebooks used to build habitat inputs, run RangeShiftR models for *Ips typographus*, and analyse simulation outputs. The workflow is organised in three main stages: habitat model and inputs, RangeShiftR modelling including the DASH application, and post-processing of outputs.
 
-# Structure
+## Repository structure
 
-This repository contains four main directories:
-- `code` : contains the code to setup, run and analyse simulations
-- `data` : can be used to store the input data to be used for simulations. This should be kept empty in the repository, apart from example files (e.g. the batch csv file used to specify parameter variations across a batch).
-- `outputs` : not stored in the repository, but it is the default location for simulation outputs to be saved.
-- `tutorial` : contains the earliest files added to this repository, based on [rangeshifter.github.io](rangeshifter.github.io) tutorials
+* `code/` — core scripts for habitat preparation, simulation setup, execution, and helper functions.
+* `data/` — tracked example input files used by the modelling workflow. Most other data files are ignored by `.gitignore`.
+* `IpsShift_DASH/` — DASH-specific run scripts and helper functions for site- and time-slice-specific model runs.
+* `Data_analysis/` — notebooks and scripts for analysing and visualising model outputs.
+* `tutorials/` — earlier tutorial material and the R project file.
+* `outputs/` — default output location for simulations; ignored by Git.
+* `config-SMS.yml` and `config-dispersal-kernel.yml` — configuration files for the main RangeShiftR workflows.
 
-# Dependencies
+## Habitat model and inputs
 
-The `RangeShiftR` R package needs to be installed. It cannot be installed like a standard package, so it needs to be installed from source as explained in the [RangeShiftR GitHub page](https://rangeshifter.github.io/RangeshiftR-tutorials/installing.html).
+This stage creates the habitat suitability and other spatial or phenology inputs required by the simulations.
 
-# R Scripts
+### Main scripts
 
-There are five R scripts in the `code` directory:
-- `1-setup-and-run-simulations.R`
-- `2-results-analysis.R`
-- `ips-shift-functions.R`
-- `Landscape_generator.R`
-- `Map_starting.R`
+* `code/Landscape_generator.R` — creates yearly habitat suitability maps from spruce, wetness, wind-damage, felling, and drought inputs; these maps are used as landscape inputs to RangeShiftR.
+* `code/Map_starting.R` — prepares starting maps for simulations.
+* `code/SPEI.R` — extracts site-level SPEI summaries and converts drought values into habitat-quality predictions.
+* `code/code_extractphenips.R` — reads PHENIPS Excel grids, crops them to study sites, and summarises values by year.
+* `code/Init_sites_PAM.R` — generates candidate starting locations from habitat and quality rasters and summarises surrounding habitat composition.
 
-## `1-setup-and-run-simulations.R`
+### Example tracked inputs in `data/`
 
-In this file, you should specify the base config and batch file, and it will run the specified batches of RangeShiftR simulations. You can also use the `DEBUG` parameter which runs only a single simulation in the current R session (rather than on a cluster), making it easier to debug errors.
+* `Batches.csv` — example batch-definition file; each row defines one simulation and can override selected parameters from the base configuration.
+* `dynamic_landscapes_1.csv` — example schedule of yearly habitat and cost-map files used by the pausing workflow.
+* `phenips1.csv` — example PHENIPS generations file mapping calendar years to model years and generation counts.
 
-The base config (`BASE_CONFIG_PATH <- "../config-SMS.yml"`) should specify all simulation parameters. The batch file (`BATCHES_FILE_PATH <- "../data/batches.csv"`) should specify a separate simulation in each row (named based on the `batch_name` column), any parameters specified in the batch file will override the base config parameters.
+### Other main inputs used by the habitat model
 
-### Existing RangeShiftR parameters that can currently be controlled:
-```yaml
-# Demography
-rmax: 2
-# Dispersal
-## Emigration
-D0: 0.7
-alpha: 10
-beta: 0.5
-## Transfer
-directional_persistence: 2
-perceptual_range: 2
-mem_size: 1
-goal_type: 2
-goal_bias: 2.5
-alpha_density_bias: 0.4
-beta_density_bias: 10
-step_mortality: 0.1 
-## Settlement
-max_settlement_prob: 0.4
-density_inflection: 10
-density_slope: 0.05
-min_steps: 1
-max_steps: 100
-# Initialise
-init_inds_file: ../data/processed/inds_init.txt
-# Land
-carrying_capacity: 1000
-```
+* Spruce distribution layers — used to define host-tree availability in the landscape-generation workflow.
+* TWI rasters — used to identify wetness or drought-risk conditions in landscape preparation.
+* Subcompartment and felling layers — used to represent windblow and felled areas in habitat maps.
+* ForestGALES outputs — used to incorporate wind-damage predictions into habitat suitability maps.
+* SPEI summaries — used to represent drought stress through time.
+* PHENIPS Excel grids — used to derive year-specific phenology inputs for simulations.
 
-### Additional "pausing" parameters
-```yaml
-# does habitat degradation happen each year, or only after `year_for_destruction` years
-apply_destruction_annually: TRUE
+Additional input files can be stored under `data/`, but most are excluded from version control.
 
-# path to a csv file specifying the habitat quality rasters and cost map rasters to be used for each year of the simulation
-dynamic_landscapes: ../data/dynamic_landscapes_1.csv
+## RangeShiftR models and DASH application
 
-# specify whether to keep the individual files generated each time Rangeshifter is run
-keep_files_per_pause: FALSE
+This stage runs the main RangeShiftR simulations and the DASH-specific applications of the model.
 
-# specify whether to keep the input files used for the simulation
-keep_input_files: FALSE
+### Standard RangeShiftR workflow
 
-# the base output path within which the simulations will be saved
-output_path: ../outputs
+* `code/1-setup-and-run-simulations.R` — main entry point for batch simulation runs; loads the base configuration and batch definitions, and supports a `DEBUG` mode for running a single simulation locally.
+* `code/ips-shift-functions.R` — core helper functions for the pausing workflow, including dynamic landscapes and habitat-destruction logic.
+* `config-SMS.yml` — base simulation configuration for the standard workflow.
+* `config-dispersal-kernel.yml` — alternative configuration file for dispersal-kernel settings.
 
-# The interval at which to save the species range file (e.g. 0 means never, 1 means every year)
-out_int_range: 5
+### DASH application
 
-# The phenips file specifying the number of generations for each year of the simulation
-phenips_file: ../data/phenips1.csv
+* `code/Run_sims_DASH.R` — runs a DASH-configured simulation workflow for a selected site and year, updating paths and output locations.
+* `IpsShift_DASH/ips-shift-functions_DASH.R` — helper functions for DASH runs, including population extraction and habitat-quality updates between pauses.
+* `IpsShift_DASH/RunRS_FoD2020.R`, `IpsShift_DASH/RunRS_FoD2050.R`, `IpsShift_DASH/RunRS_FoD2070.R` — Forest of Dean DASH runs for different time slices.
+* `IpsShift_DASH/RunRS_Kielder2020.R`, `IpsShift_DASH/RunRS_Kielder2050.R`, `IpsShift_DASH/RunRS_Kielder2070.R` — Kielder DASH runs for different time slices.
+* `IpsShift_DASH/RunRS_NYM2020.R`, `IpsShift_DASH/RunRS_NYM2050.R`, `IpsShift_DASH/RunRS_NYM2070.R` — North York Moors DASH runs for different time slices.
 
-# Does the population impact the quality of the landscape?
-pop_impacts_quality: TRUE
+## Analysis of outputs
 
-# How many replicates to run for this simulation
-replicates: 5
+This stage summarises, visualises, and interprets the outputs produced by the simulations.
 
-# Number of years for the simulation
-years: 20
+### Main analysis files
 
-# Number of years it would take for a fully occupied cell of 100% quality to be fully degraded
-years_for_destruction: 10
-```
+* `code/2-results-analysis.R` — initial analysis script for simulation outputs.
+* `Data_analysis/occupancy_dynamics_habitat_suitability` — notebook for mapping occupancy through time and overlaying occupancy on habitat-suitability rasters.
+* `Data_analysis/time_series_plots` — notebook for plotting occupancy, spread, and extinction summaries through time.
+* `Data_analysis/plot_starting_map.R` — crops a suitability raster and plots the chosen starting locations over it.
+* `Data_analysis/initialise_sites_pam.R` — analysis copy of the site-initialisation workflow for generating candidate starting locations.
+* `Data_analysis/extract_phenips_data.R` — analysis copy of the PHENIPS extraction workflow for site and year summaries.
 
-## `2-results-analysis.R`
+## Dependencies
 
-Contains the code to perform initial analysis of simulation results.
+This project requires R plus the packages used by the simulation scripts, including:
 
-This file may now be redundant since major changes to how simulations are run.
+* `RangeShiftR`
+* `yaml`
+* `parallel`
+* `sf`
+* `terra`
 
+`RangeShiftR` needs to be installed from source. See the [RangeShiftR installation guide](https://rangeshifter.github.io/RangeshiftR-tutorials/installing.html).
 
-## `ips-shift-functions.R`
+## Running simulations
 
-Contains all the functions required to run the pausing RangeShifter simulations - loading dynamic landscapes and applying habitat destruction by the species.
+The main workflow is driven from `code/1-setup-and-run-simulations.R`:
+
+1. Update the working paths in the script if needed for your environment.
+2. Set the base configuration file.
+3. Set the batch definition file.
+4. Use `DEBUG <- TRUE` to run a single simulation in the current R session, or `DEBUG <- FALSE` to run the full batch in parallel.
+5. Review outputs in the default `outputs/` location.
+
+## Notes
+
+* The `data/` directory is mostly ignored by Git; only selected example files are tracked.
+* `Data_analysis/` and `IpsShift_DASH/` contain additional analysis and alternative run workflows beyond the main `code/` pipeline.
+* The `outputs/` directory is not stored in the repository.
+* The `tutorials/` directory contains earlier tutorial-based material.

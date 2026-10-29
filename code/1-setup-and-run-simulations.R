@@ -2,7 +2,7 @@ library(parallel)
 library(RangeShiftR)
 library(yaml)
 
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+setwd("/Workspace/Users/fiona.plenderleith@defra.onmicrosoft.com/RangeShiftR/Ips_RangeShiftR/code") # update this to correct path
 source("ips-shift-functions.R")
 
 #############
@@ -11,10 +11,10 @@ source("ips-shift-functions.R")
 
 # The base config allows you to specify default values, so that for the batch simulations
 # you only need to specify parameters that change from those defaults.
-BASE_CONFIG_PATH <- "../config-SMS.yml"
+BASE_CONFIG_PATH <- "/Workspace/Users/fiona.plenderleith@defra.onmicrosoft.com/RangeShiftR/Ips_RangeShiftR/config-SMS.yml"
 
 # The batch file where parameter changes can be specified
-BATCHES_FILE_PATH <- "../data/batches.csv"
+BATCHES_FILE_PATH <- "/dbfs/FileStore/tables/FionaPlenderleith /dbfs/mnt/lab/unrestricted/FionaPlenderleith/Batches.csv"
 
 # USED FOR DEBUGGING:
 # IF FALSE, ALL BATCHES WILL BE RUN USING A CLUSTER;
