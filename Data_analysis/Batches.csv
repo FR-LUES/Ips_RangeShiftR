@@ -1,0 +1,21 @@
+batch_name,phenips_file,density_inflection,density_slope,years_for_destruction,keep_input_files,pop_impacts_quality
+Batch 1,../data/phenips1.csv,10,0.05,18,FALSE,TRUE
+Batch-2,../data/phenips1.csv,20,0.05,5,TRUE,TRUE
+b3,../data/phenips1.csv,10,0.2,5,TRUE,TRUE
+4,../data/phenips1.csv,20,0.2,5,TRUE,FALSE
+5,../data/phenips1.csv,10,0.8,5,TRUE,FALSE
+6,../data/phenips1.csv,20,0.8,5,TRUE,FALSE
+7,../data/phenips1.csv,10,1,5,TRUE,FALSE
+8,../data/phenips1.csv,20,1,5,TRUE,FALSE
+9,../data/phenips1.csv,10,2,5,TRUE,FALSE
+10,../data/phenips1.csv,20,2,5,TRUE,FALSE
+11,../data/phenips1.csv,10,0.05,10,TRUE,FALSE
+12,../data/phenips1.csv,20,0.05,10,TRUE,FALSE
+13,../data/phenips1.csv,10,0.2,10,TRUE,FALSE
+14,../data/phenips1.csv,20,0.2,10,TRUE,FALSE
+15,../data/phenips1.csv,10,0.8,10,TRUE,FALSE
+16,../data/phenips1.csv,20,0.8,10,TRUE,FALSE
+17,../data/phenips1.csv,10,1,10,TRUE,FALSE
+18,../data/phenips1.csv,20,1,10,TRUE,FALSE
+19,../data/phenips1.csv,10,2,10,TRUE,FALSE
+20,../data/phenips1.csv,20,2,10,TRUE,FALSE
