@@ -6,7 +6,7 @@ This repository contains the R scripts, configuration files, and analysis notebo
 
 * `code/` — core scripts for habitat preparation, simulation setup, execution, and helper functions.
 * `data/` — tracked example input files used by the modelling workflow. Most other data files are ignored by `.gitignore`.
-* `IpsShift_DASH/` — DASH-specific run scripts and helper functions for site- and time-slice-specific model runs.
+* `IpsShift_DASH/` — Databricks (DASH)-specific run scripts and helper functions for site- and time-slice-specific model runs.
 * `Data_analysis/` — notebooks and scripts for analysing and visualising model outputs.
 * `tutorials/` — earlier tutorial material and the R project file.
 * `outputs/` — default output location for simulations; ignored by Git.
