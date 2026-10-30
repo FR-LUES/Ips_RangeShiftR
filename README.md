@@ -6,7 +6,7 @@ This repository contains the R scripts, configuration files, and analysis notebo
 
 * `code/` — core scripts for habitat preparation, simulation setup, execution, and helper functions.
 * `data/` — tracked example input files used by the modelling workflow. Most other data files are ignored by `.gitignore`.
-* `IpsShift_DASH/` — Databricks (DASH)-specific run scripts and helper functions for site- and time-slice-specific model runs.
+* `code/IpsShift_DASH/` — Databricks (DASH)-specific run scripts and helper functions for site- and time-slice-specific model runs.
 * `Data_analysis/` — notebooks and scripts for analysing and visualising model outputs.
 * `tutorials/` — earlier tutorial material and the R project file.
 * `outputs/` — default output location for simulations; ignored by Git.
@@ -54,10 +54,10 @@ This stage runs the main RangeShiftR simulations and the DASH-specific applicati
 ### DASH application
 
 * `code/Run_sims_DASH.R` — runs a DASH-configured simulation workflow for a selected site and year, updating paths and output locations.
-* `IpsShift_DASH/ips-shift-functions_DASH.R` — helper functions for DASH runs, including population extraction and habitat-quality updates between pauses.
-* `IpsShift_DASH/RunRS_FoD2020.R`, `IpsShift_DASH/RunRS_FoD2050.R`, `IpsShift_DASH/RunRS_FoD2070.R` — Forest of Dean DASH runs for different time slices.
-* `IpsShift_DASH/RunRS_Kielder2020.R`, `IpsShift_DASH/RunRS_Kielder2050.R`, `IpsShift_DASH/RunRS_Kielder2070.R` — Kielder DASH runs for different time slices.
-* `IpsShift_DASH/RunRS_NYM2020.R`, `IpsShift_DASH/RunRS_NYM2050.R`, `IpsShift_DASH/RunRS_NYM2070.R` — North York Moors DASH runs for different time slices.
+* `code/IpsShift_DASH/ips-shift-functions_DASH.R` — helper functions for DASH runs, including population extraction and habitat-quality updates between pauses.
+* `code/IpsShift_DASH/RunRS_FoD2020.R`, `IpsShift_DASH/RunRS_FoD2050.R`, `IpsShift_DASH/RunRS_FoD2070.R` — Forest of Dean DASH runs for different time slices.
+* `code/IpsShift_DASH/RunRS_Kielder2020.R`, `IpsShift_DASH/RunRS_Kielder2050.R`, `IpsShift_DASH/RunRS_Kielder2070.R` — Kielder DASH runs for different time slices.
+* `code/IpsShift_DASH/RunRS_NYM2020.R`, `IpsShift_DASH/RunRS_NYM2050.R`, `IpsShift_DASH/RunRS_NYM2070.R` — North York Moors DASH runs for different time slices.
 
 ## Analysis of outputs
 
