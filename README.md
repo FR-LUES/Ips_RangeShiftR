@@ -18,9 +18,8 @@ This stage creates the habitat suitability and other spatial or phenology inputs
 
 ### Main scripts
 
-* `code/Landscape_generator.R` — creates yearly habitat suitability maps from spruce, wetness, wind-damage, felling, and drought inputs; these maps are used as landscape inputs to RangeShiftR.
-* `code/Map_starting.R` — prepares starting maps for simulations.
-* `code/SPEI.R` — extracts site-level SPEI summaries and converts drought values into habitat-quality predictions.
+* `code/Habitat_suitability_model.R` — creates yearly habitat suitability maps from spruce, wetness, wind-damage, felling, and drought inputs; these maps are used as landscape inputs to RangeShiftR.
+* `code/Extract_SPEI.R` — extracts site-level SPEI summaries and converts drought values into habitat-quality predictions.
 * `code/code_extractphenips.R` — reads PHENIPS Excel grids, crops them to study sites, and summarises values by year.
 * `code/Init_sites_PAM.R` — generates candidate starting locations from habitat and quality rasters and summarises surrounding habitat composition.
 
@@ -47,7 +46,7 @@ This stage runs the main RangeShiftR simulations and the DASH-specific applicati
 
 ### Standard RangeShiftR workflow
 
-* `code/1-setup-and-run-simulations.R` — main entry point for batch simulation runs; loads the base configuration and batch definitions, and supports a `DEBUG` mode for running a single simulation locally.
+* `code/Setup-and-run-simulations.R` — main entry point for batch simulation runs; loads the base configuration and batch definitions, and supports a `DEBUG` mode for running a single simulation locally.
 * `code/ips-shift-functions.R` — core helper functions for the pausing workflow, including dynamic landscapes and habitat-destruction logic.
 * `config-SMS.yml` — base simulation configuration for the standard workflow.
 * `config-dispersal-kernel.yml` — alternative configuration file for dispersal-kernel settings.
@@ -66,7 +65,7 @@ This stage summarises, visualises, and interprets the outputs produced by the si
 
 ### Main analysis files
 
-* `code/2-results-analysis.R` — initial analysis script for simulation outputs.
+* `Data_analysis/Results-analysis.R` — initial analysis script for simulation outputs.
 * `Data_analysis/occupancy_dynamics_habitat_suitability` — notebook for mapping occupancy through time and overlaying occupancy on habitat-suitability rasters.
 * `Data_analysis/time_series_plots` — notebook for plotting occupancy, spread, and extinction summaries through time.
 * `Data_analysis/plot_starting_map.R` — crops a suitability raster and plots the chosen starting locations over it.
