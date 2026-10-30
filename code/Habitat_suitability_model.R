@@ -1,8 +1,3 @@
-
-# ============================================================
-# Script Name: Landscape Habitat Suitability 
-# Author: Fiona Plenderleith
-
 # Description:
 # This script generates a time series of habitat suitability maps
 # for Ips typographus using spatial data on spruce distribution,
