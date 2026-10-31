@@ -5,7 +5,7 @@ folder <- "Z:/Common/Fiona Plenderleith/IpsShift2/Landscapes/processed/Kielder"
 
 # Regex pattern:
 # inds_ + 4 digits + _cluster + number + _rep + number
-pattern <- "^inds_[0-9]{4}_cluster[0-9]+_rep[0-9]+"
+pattern <- "^inds_[0-9]{4}_cluster[0-9]+_rep[0-9]+" # need to locat the inds files generated in hab model (define init pop)
 
 # List all files in folder (recursive in case of subfolders)
 files <- list.files(folder, full.names = TRUE, recursive = TRUE)
@@ -19,7 +19,7 @@ df <- data.frame(file_path = matched)
 # Export to Excel
 write_xlsx(df, "Z:/Common/Fiona Plenderleith/IpsShift2/Landscapes/processed/Kielder/inds_file_paths.xlsx")
 
-df
+df # this will be a table with all ind files available and their metadata
 
 
 

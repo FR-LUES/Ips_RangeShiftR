@@ -206,7 +206,7 @@
 
 # MAGIC %r
 # MAGIC # ==================================================
-# MAGIC # RESULTS SECTION SUMMARY STATS (clean + no warnings)
+# MAGIC # RESULTS SECTION SUMMARY STATS
 # MAGIC # ==================================================
 # MAGIC
 # MAGIC

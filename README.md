@@ -31,12 +31,12 @@ This stage creates the habitat suitability and other spatial or phenology inputs
 
 ### Other main inputs used by the habitat model
 
-* Spruce distribution layers — used to define host-tree availability in the landscape-generation workflow.
-* TWI rasters — used to identify wetness or drought-risk conditions in landscape preparation.
-* Subcompartment and felling layers — used to represent windblow and felled areas in habitat maps.
-* ForestGALES outputs — used to incorporate wind-damage predictions into habitat suitability maps.
-* SPEI summaries — used to represent drought stress through time.
-* PHENIPS Excel grids — used to derive year-specific phenology inputs for simulations.
+* Spruce distribution layers — used to define host-tree availability in the landscape-generation workflow - input is a binary raster in desried resolution to represent presence / absence of host tree (here spruce).
+* TWI rasters — used to identify wetness or drought-risk conditions in landscape preparation (https://www.sciencedirect.com/science/article/abs/pii/S0048969720373162) - this could be a substituted for a raster that represents drought susceptiblity within a forest (e.g. if detailed soil data were available)
+* Subcompartment and felling layers — used to represent windblow and felled areas in habitat maps - management information from site (https://www.data.gov.uk/dataset/b8cb3475-f5d1-4907-b82a-13477fd6cf69/forestry-england-subcompartments2025).
+* ForestGALES outputs — used to incorporate wind-damage predictions into habitat suitability map (https://www.forestresearch.gov.uk/tools-and-resources/fthr/forestgales/)
+* SPEI summaries — used to represent drought stress through time)
+* PHENIPS Excel grids — used to derive year-specific phenology inputs for simulations (https://nph.onlinelibrary.wiley.com/doi/full/10.1002/ppp3.10583)
 
 Additional input files can be stored under `data/`, but most are excluded from version control.
 
@@ -53,8 +53,8 @@ This stage runs the main RangeShiftR simulations and the DASH-specific applicati
 
 ### DASH application
 
-* `code/Run_sims_DASH.R` — runs a DASH-configured simulation workflow for a selected site and year, updating paths and output locations.
-* `code/IpsShift_DASH/ips-shift-functions_DASH.R` — helper functions for DASH runs, including population extraction and habitat-quality updates between pauses.
+* `code/Run_sims_DASH.R` — runs a DASH (databricks)configured simulation workflow for a selected site and year, updating paths and output locations
+* `code/IpsShift_DASH/ips-shift-functions_DASH.R` — helper functions for DASH Databricks runs, including population extraction and habitat-quality updates between pauses.
 * `code/IpsShift_DASH/RunRS_FoD2020.R`, `IpsShift_DASH/RunRS_FoD2050.R`, `IpsShift_DASH/RunRS_FoD2070.R` — Forest of Dean DASH runs for different time slices.
 * `code/IpsShift_DASH/RunRS_Kielder2020.R`, `IpsShift_DASH/RunRS_Kielder2050.R`, `IpsShift_DASH/RunRS_Kielder2070.R` — Kielder DASH runs for different time slices.
 * `code/IpsShift_DASH/RunRS_NYM2020.R`, `IpsShift_DASH/RunRS_NYM2050.R`, `IpsShift_DASH/RunRS_NYM2070.R` — North York Moors DASH runs for different time slices.
@@ -69,8 +69,7 @@ This stage summarises, visualises, and interprets the outputs produced by the si
 * `Data_analysis/occupancy_dynamics_habitat_suitability` — notebook for mapping occupancy through time and overlaying occupancy on habitat-suitability rasters.
 * `Data_analysis/time_series_plots` — notebook for plotting occupancy, spread, and extinction summaries through time.
 * `Data_analysis/plot_starting_map.R` — crops a suitability raster and plots the chosen starting locations over it.
-* `Data_analysis/initialise_sites_pam.R` — analysis copy of the site-initialisation workflow for generating candidate starting locations.
-* `Data_analysis/extract_phenips_data.R` — analysis copy of the PHENIPS extraction workflow for site and year summaries.
+* `Data_analysis/initialise_sites_pam.R` — Site-initialisation workflow for generating candidate starting locations - can only be run after habitat suitability model 
 
 ## Dependencies
 
@@ -98,5 +97,5 @@ The main workflow is driven from `code/1-setup-and-run-simulations.R`:
 
 * The `data/` directory is mostly ignored by Git; only selected example files are tracked.
 * `Data_analysis/` and `IpsShift_DASH/` contain additional analysis and alternative run workflows beyond the main `code/` pipeline.
-* The `outputs/` directory is not stored in the repository.
+* The `outputs/` directory is not stored in the repository as the output files are large. 
 * The `tutorials/` directory contains earlier tutorial-based material.

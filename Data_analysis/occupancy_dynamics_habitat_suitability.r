@@ -107,11 +107,6 @@ ggplot(cell_props, aes(x = x, y = y, fill = prop)) +
 
 # COMMAND ----------
 
-batch_dir <- "/dbfs/mnt/lab/unrestricted/Fiona/FoD_updated2/"
-list.files(batch_dir)
-
-# COMMAND ----------
-
 install.packages("viridis")
 
 library(tidyverse)
